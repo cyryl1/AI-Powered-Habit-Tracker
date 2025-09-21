@@ -1,48 +1,36 @@
-## 🔖 Project Title & Description
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
-**Title:** AI-Powered Habit Tracker
+## Getting Started
 
-**Description:** This application is a full-stack habit tracking system that helps users build and maintain healthy routines.  It allows users to set daily habits (e.g., "Drink 8 glasses of water," "Read 30 minutes"), log their progress, and visualize their consistency. The unique value of this app lies in its **AI integration**: it analyzes a user's logged data over time to provide personalized insights, motivational messages, and intelligent suggestions for improving habit streaks.
+First, run the development server:
 
-**Target Audience:** Individuals looking to improve their daily routines, fitness enthusiasts, and students.
+```bash
+npm run dev
+# or
+yarn dev
+# or
+pnpm dev
+# or
+bun dev
+```
 
-**Why it Matters:** This project demonstrates practical AI integration beyond a simple chat bot. It showcases a modern tech stack and the ability to build a data-driven, user-centric application that solves a real-world problem.
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
----
+You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
-## 🛠️ Tech Stack
+This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
-* **Frontend:** **Next.js** or **React**
-* **Backend:** **Python** with **FastAPI** 🚀 (for a high-performance, asynchronous API)
-* **Database:** **PostgreSQL** (a robust relational database)
-* **Database ORM:** **SQLAlchemy** (to interact with the database using Python objects)
-* **Data Validation:** **Pydantic** (integrated with FastAPI for automatic data validation)
-* **AI Integration:** **Vercel AI SDK** or a similar library to call a language model.
-* **Styling:** **Tailwind CSS** or a similar utility-first CSS framework.
+## Learn More
 
----
+To learn more about Next.js, take a look at the following resources:
 
-## 🧠 AI Integration Strategy
+- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
 
-AI will be a core part of the development and functionality of this project.
+You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
-### Code Generation
-We will use AI to scaffold key parts of the application.
-* **Backend:** Prompt the AI to generate the **FastAPI application instance**, **Pydantic models** for request/response validation, and **SQLAlchemy models** for the database schema.
-* **Frontend:** Ask the AI to create **React components** for habit logging and data visualization.
+## Deploy on Vercel
 
-### Testing
-AI will assist in ensuring the application is robust and bug-free.
-* **Unit Tests:** We will prompt the AI to write unit tests for FastAPI endpoints using the **TestClient** from `fastapi.testclient` and **pytest**. For example, testing that a habit is successfully created or that a user receives a 401 Unauthorized response for a protected endpoint.
-* **AI Function Test:** A specific test will be written to verify that the AI insight function returns a structured, non-empty response for valid user data.
+The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
-### Documentation
-AI will help us maintain clear and consistent documentation.
-* **Inline Comments:** We will use AI to generate **docstrings** for all Python functions, explaining their purpose, parameters, and return values.
-* **README:** The AI will be prompted to generate the initial project setup instructions and API endpoint documentation for the final `README.md`.
-
-### Context-Aware Techniques
-To ensure the AI provides accurate and relevant code, we will feed it specific context.
-* **Schema Context:** When requesting API route logic, we will provide the AI with the **exact Pydantic models** and **SQLAlchemy schemas** to ensure it uses the correct field names and data types.
-* **File Context:** Using in-IDE commands, we will feed the AI the content of an entire file (e.g., `#file src/pages/HabitDashboard.tsx`) to ask for a new feature or refactoring within that file's specific context.
-* **API Specification:** We will maintain a simple API specification (e.g., in a text file) and provide it to the AI when generating new API route handlers, ensuring consistency across all endpoints.
+Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
