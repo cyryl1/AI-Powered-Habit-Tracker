@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+passlib[bcrypt]
+python-jose
+pydantic
+pymongo
+motor
+pydantic-settings==2.2.1
