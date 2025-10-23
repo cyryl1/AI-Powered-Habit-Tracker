@@ -109,6 +109,7 @@ const SignupForm = () => {
   const [message, setMessage] = useState('');
   const [isError, setIsError] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false); // New state for password visibility
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -129,7 +130,7 @@ const SignupForm = () => {
       const data = await response.json();
 
       if (response.ok) {
-        setMessage('PROFILE_INITIALIZED: Welcome to the neural network, ' + username + '!');
+        setMessage('PROFILE_INITIALIZED: Neural onboarding sequence ready, ' + username + '!');
         
         // Auto-login after successful registration
         const loginResponse = await fetch('http://localhost:8000/api/v1/users/login', {
@@ -143,7 +144,7 @@ const SignupForm = () => {
 
         if (loginResponse.ok) {
           setTimeout(() => {
-            router.push('/dashboard');
+            router.push('/onboarding');
           }, 2000);
         }
 
@@ -187,12 +188,10 @@ const SignupForm = () => {
       <div className="relative z-10 w-full max-w-md mx-4">
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="relative w-16 h-16 mx-auto mb-4">
-            <div className="absolute inset-0 border-2 border-cyan-400 rotate-45 rounded-lg"></div>
-            <div className="absolute inset-2 border-2 border-purple-400 rotate-12 rounded-lg"></div>
-            <div className="absolute inset-0 flex items-center justify-center">
-              <span className="text-2xl font-bold text-cyan-300">Ψ</span>
-            </div>
+          <div className="absolute inset-0 border-2 border-cyan-400 rotate-45 rounded-lg"></div>
+          <div className="absolute inset-2 border-2 border-purple-400 rotate-12 rounded-lg"></div>
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span className="text-2xl font-bold text-cyan-300">Ψ</span>
           </div>
           <h1 className="text-3xl font-light text-white mb-2">
             <span className="font-mono">CREATE_PROFILE</span>
@@ -241,22 +240,30 @@ const SignupForm = () => {
               />
             </div>
 
-            {/* Password Field */}
-            <div>
+            {/* Encryption Key Field */}
+            <div className="relative">
               <label htmlFor="password" className="block text-cyan-300 font-mono text-sm mb-3">
-                <span className="text-green-400">➜</span> ENCRYPTION_KEY
+                <span className="text-green-400">⚡</span> PASSWORD
               </label>
               <input
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 id="password"
                 className="w-full px-4 py-3 bg-black border border-gray-700 text-white font-mono rounded-none 
                          focus:border-cyan-400 focus:outline-none transition-all duration-300
-                         hover:border-gray-500"
+                         hover:border-gray-500 pr-10"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 placeholder="••••••••••••"
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-cyan-300 focus:outline-none"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? ' 🙈 ' : ' 👁 '} {/* Cyberpunk eye icon toggle */}
+              </button>
             </div>
 
             {/* Submit Button */}

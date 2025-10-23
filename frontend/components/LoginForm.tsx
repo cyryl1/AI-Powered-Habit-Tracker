@@ -1,94 +1,3 @@
-// "use client"
-
-// import React, { useState } from 'react';
-
-// const LoginForm = () => {
-//   const [email, setEmail] = useState('');
-//   const [password, setPassword] = useState('');
-//   const [message, setMessage] = useState('');
-//   const [isError, setIsError] = useState(false);
-
-//   const handleSubmit = async (e) => {
-//     e.preventDefault();
-//     setMessage('');
-//     setIsError(false);
-
-//     try {
-//       const formData = new URLSearchParams();
-//       formData.append('username', email); // FastAPI expects 'username' for OAuth2PasswordRequestForm
-//       formData.append('password', password);
-
-//       const response = await fetch('http://localhost:8000/api/v1/auth/login', {
-//         method: 'POST',
-//         headers: {
-//           'Content-Type': 'application/x-www-form-urlencoded',
-//         },
-//         body: formData.toString(),
-//       });
-
-//       const data = await response.json();
-
-//       if (response.ok) {
-//         setMessage('Login successful!');
-//         localStorage.setItem('access_token', data.access_token);
-//         // Optionally redirect user or update UI
-//         setEmail('');
-//         setPassword('');
-//       } else {
-//         throw new Error(data.detail || 'Something went wrong during login.');
-//       }
-//     } catch (error) {
-//       setMessage('Login failed: ' + error.message);
-//       setIsError(true);
-//     }
-//   };
-
-//   return (
-//     <div className="flex items-center justify-center min-h-screen bg-gray-100">
-//       <form onSubmit={handleSubmit} className="p-8 bg-white rounded shadow-md w-full max-w-sm">
-//         <h2 className="text-2xl font-bold mb-6 text-center">Log In</h2>
-//         <div className="mb-4">
-//           <label htmlFor="email" className="block text-gray-700 text-sm font-bold mb-2">Email:</label>
-//           <input
-//             type="email"
-//             id="email"
-//             className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-//             value={email}
-//             onChange={(e) => setEmail(e.target.value)}
-//             required
-//           />
-//         </div>
-//         <div className="mb-6">
-//           <label htmlFor="password" className="block text-gray-700 text-sm font-bold mb-2">Password:</label>
-//           <input
-//             type="password"
-//             id="password"
-//             className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 mb-3 leading-tight focus:outline-none focus:shadow-outline"
-//             value={password}
-//             onChange={(e) => setPassword(e.target.value)}
-//             required
-//           />
-//         </div>
-//         <div className="flex items-center justify-between">
-//           <button
-//             type="submit"
-//             className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
-//           >
-//             Log In
-//           </button>
-//         </div>
-//         {message && (
-//           <p className={`text-center mt-4 ${isError ? 'text-red-500' : 'text-green-500'}`}>
-//             {message}
-//           </p>
-//         )}
-//       </form>
-//     </div>
-//   );
-// };
-
-// export default LoginForm;
-
 "use client"
 
 import React, { useState } from 'react';
@@ -102,7 +11,9 @@ const LoginForm = () => {
   const [message, setMessage] = useState('');
   const [isError, setIsError] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false); // New state for password visibility
   const router = useRouter();
+  const { fetchUser } = useAuth(); // Use the fetchUser from AuthContext
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -112,7 +23,7 @@ const LoginForm = () => {
 
     try {
       const formData = new URLSearchParams();
-      formData.append('username', username); // or username if that's what your backend expects
+      formData.append('username', username);
       formData.append('password', password);
 
       const response = await fetch('http://localhost:8000/api/v1/users/login', {
@@ -121,21 +32,36 @@ const LoginForm = () => {
           'Content-Type': 'application/x-www-form-urlencoded',
         },
         body: formData.toString(),
-        credentials: 'include', // Important for cookies
+        credentials: 'include',
       });
-
-      const meResponse = await fetch('http://localhost:8000/api/v1/users/me', {
-        credentials: 'include'
-      })
-      console.log('ME endpoint: ', meResponse)
 
       if (response.ok) {
         setMessage('AUTHENTICATION_SUCCESSFUL: Access granted to neural network');
         
-        // Redirect to dashboard after successful login
-        setTimeout(() => {
-          router.push('/dashboard');
-        }, 1500);
+        // Use the AuthContext's fetchUser to update the global auth state
+        const user = await fetchUser();
+        
+        if (user) {
+          console.log('✅ User authenticated:', user);
+          
+          // Let the AuthContext handle the redirect based on onboarding status
+          setTimeout(() => {
+            if (!user.onboarding_completed) {
+              router.push('/onboarding');
+            } else {
+              // Check if user has seen AI intro
+              const hasViewedAiIntro = sessionStorage.getItem('ai_intro_viewed');
+              if (!hasViewedAiIntro) {
+                router.push('/ai-intro');
+              } else {
+                router.push('/dashboard');
+              }
+            }
+          }, 1000);
+        } else {
+          setMessage('AUTHENTICATION_ERROR: Failed to fetch user data');
+          setIsError(true);
+        }
         
         setUsername('');
         setPassword('');
@@ -144,6 +70,7 @@ const LoginForm = () => {
         throw new Error(data.detail || 'Authentication protocol failed.');
       }
     } catch (error) {
+      console.error('Login error:', error);
       setMessage('ACCESS_DENIED: ' + (error instanceof Error ? error.message : 'Unknown error occurred'));
       setIsError(true);
     } finally {
@@ -205,11 +132,11 @@ const LoginForm = () => {
             
             {/* Credentials Field */}
             <div>
-              <label htmlFor="email" className="block text-cyan-300 font-mono text-sm mb-3">
-                <span className="text-green-400">⟳</span> UserName
+              <label htmlFor="username" className="block text-cyan-300 font-mono text-sm mb-3">
+                <span className="text-green-400">⟳</span> USERNAME
               </label>
               <input
-                type="username"
+                type="text"
                 id="username"
                 className="w-full px-4 py-3 bg-black border border-gray-700 text-white font-mono rounded-none 
                          focus:border-green-400 focus:outline-none transition-all duration-300
@@ -217,34 +144,36 @@ const LoginForm = () => {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 required
-                placeholder="Phantom"
+                placeholder="Enter your username"
+                disabled={isLoading}
               />
             </div>
 
             {/* Encryption Key Field */}
-            <div>
+            <div className="relative">
               <label htmlFor="password" className="block text-cyan-300 font-mono text-sm mb-3">
-                <span className="text-green-400">⚡</span> Password
+                <span className="text-green-400">⚡</span> PASSWORD
               </label>
               <input
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 id="password"
                 className="w-full px-4 py-3 bg-black border border-gray-700 text-white font-mono rounded-none 
                          focus:border-green-400 focus:outline-none transition-all duration-300
-                         hover:border-gray-500"
+                         hover:border-gray-500 pr-10"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                placeholder="Enter security clearance(password)"
+                placeholder="Enter your password"
+                disabled={isLoading}
               />
-            </div>
-
-            {/* Security Check */}
-            <div className="flex items-center space-x-3 p-3 bg-black border border-gray-700">
-              <div className="w-4 h-4 border border-green-400 bg-green-400/20 flex items-center justify-center">
-                <span className="text-green-400 text-xs">✓</span>
-              </div>
-              <span className="text-gray-400 font-mono text-sm">Biometric scan complete</span>
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center pt-8 text-gray-400 hover:text-cyan-300 focus:outline-none"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? ' 🙈 ' : ' 👁 '} {/* Cyberpunk eye icon toggle */}
+              </button>
             </div>
 
             {/* Authentication Button */}
@@ -254,12 +183,18 @@ const LoginForm = () => {
               className="w-full py-3 bg-black border-2 border-green-400 text-green-300 font-mono 
                        hover:bg-green-400 hover:text-black hover:shadow-[0_0_20px_rgba(74,222,128,0.3)]
                        disabled:opacity-50 disabled:cursor-not-allowed
-                       transition-all duration-300 relative group"
+                       transition-all duration-300 relative group flex items-center justify-center"
             >
-              <span className="relative z-10">
-                {isLoading ? 'AUTHENTICATING...' : 'REQUEST_ACCESS'}
-              </span>
-              <div className="absolute inset-0 bg-green-400 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+              {isLoading ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-green-300 border-t-transparent rounded-full animate-spin mr-2"></div>
+                  AUTHENTICATING...
+                </>
+              ) : (
+                <>
+                  REQUEST_ACCESS
+                </>
+              )}
             </button>
           </div>
 

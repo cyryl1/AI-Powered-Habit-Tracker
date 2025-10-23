@@ -24,6 +24,7 @@ app.add_middleware(
 
 app.include_router(users.router)
 app.include_router(habits.router)
+app.include_router(habits.ai_router)
 
 @app.get("/")
 async def read_root():
