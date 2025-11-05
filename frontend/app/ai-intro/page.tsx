@@ -16,24 +16,45 @@ export default function AIIntroPage() {
   const [showContinueButton, setShowContinueButton] = useState(false)
   const [isInitialized, setIsInitialized] = useState(false)
 
-  const introText = [
-    '[SYSTEM_BOOT] Neural Assistant v2.1.3',
-    `[USER_IDENTIFIED] Welcome, ${user?.name || 'Operator'}`,
-    '[AI_CALIBRATION] Loading behavioral analysis modules...',
-    '[HABIT_PATTERNS] Neural networks optimizing your routines',
-    '[SYSTEM_READY] Your AI habit assistant is now active'
-  ]
+  const [introText, setIntroText] = useState<string[]>([])
 
-  // Handle loading state
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="text-cyan-300 font-mono text-lg animate-pulse">
-          INITIALIZING_NEURAL_INTERFACE
-        </div>
-      </div>
-    )
-  }
+  useEffect(() => {
+    if (!user) return;
+
+    const fetchIntroText = async () => {
+      try {
+        const response = await fetch('http://localhost:8000/api/v1/ai/intro', {
+          credentials: 'include',
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setIntroText(data);
+        } else {
+          console.error('Failed to fetch AI intro text');
+          // Fallback to static text if API fails
+          setIntroText([
+            '[SYSTEM_BOOT] Neural Assistant v2.1.3',
+            `[USER_IDENTIFIED] Welcome, ${user?.name || 'Operator'}`,
+            '[AI_CALIBRATION] Loading behavioral analysis modules...',
+            '[HABIT_PATTERNS] Neural networks optimizing your routines',
+            '[SYSTEM_READY] Your AI habit assistant is now active'
+          ]);
+        }
+      } catch (error) {
+        console.error('Error fetching AI intro text:', error);
+        // Fallback to static text if network error
+        setIntroText([
+          '[SYSTEM_BOOT] Neural Assistant v2.1.3',
+          `[USER_IDENTIFIED] Welcome, ${user?.name || 'Operator'}`,
+          '[AI_CALIBRATION] Loading behavioral analysis modules...',
+          '[HABIT_PATTERNS] Neural networks optimizing your routines',
+          '[SYSTEM_READY] Your AI habit assistant is now active'
+        ]);
+      }
+    };
+
+    fetchIntroText();
+  }, [user]);
 
   useEffect(() => {
     if (lineIndex < introText.length) {
@@ -60,7 +81,18 @@ export default function AIIntroPage() {
         setIsInitialized(true)
       }, 600)
     }
-  }, [charIndex, lineIndex])
+  }, [charIndex, lineIndex, introText.length, showContinueButton])
+
+  // Handle loading state
+  if (loading || introText.length === 0) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="text-cyan-300 font-mono text-lg animate-pulse">
+          INITIALIZING_NEURAL_INTERFACE
+        </div>
+      </div>
+    )
+  }
 
   const handleContinue = () => {
     if (typeof window !== 'undefined') {
@@ -164,7 +196,7 @@ export default function AIIntroPage() {
               </div>
 
               {/* Terminal */}
-              <div className="bg-black border border-cyan-400/50 rounded-lg p-6 font-mono h-48 overflow-hidden">
+              <div className="bg-black border border-cyan-400/50 rounded-lg p-6 font-mono h-48 overflow-y-auto scrollbar-hide">
                 <div className="flex items-center space-x-2 mb-4">
                   <div className="w-3 h-3 bg-red-400 rounded-full"></div>
                   <div className="w-3 h-3 bg-yellow-400 rounded-full"></div>

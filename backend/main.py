@@ -1,10 +1,17 @@
 from fastapi import FastAPI
-from app.api.routers import users, habits
+from app.api.routers import users, habits, ai
 from app.core.database import lifespan
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
+from fastapi_utils.tasks import repeat_every
+from app.services.reminders import check_and_send_reminders
 
 app = FastAPI(lifespan=lifespan)
+
+@app.on_event("startup")
+@repeat_every(seconds=60)  # 1 minute
+async def schedule_reminders():
+    await check_and_send_reminders()
 
 origins = [
     "http://localhost",
@@ -24,7 +31,7 @@ app.add_middleware(
 
 app.include_router(users.router)
 app.include_router(habits.router)
-app.include_router(habits.ai_router)
+app.include_router(ai.router)
 
 @app.get("/")
 async def read_root():

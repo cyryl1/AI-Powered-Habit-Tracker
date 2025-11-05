@@ -1,7 +1,7 @@
-"use client"
+"use client";
 
-import { createContext, useContext, useEffect, useState } from "react"
-import { useRouter, usePathname } from "next/navigation"
+import { createContext, useContext, useEffect, useState } from "react";
+import { useRouter, usePathname } from "next/navigation";
 
 interface User {
   _id: string;
@@ -22,82 +22,88 @@ interface AuthContextType {
   logout: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined)
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [initialized, setInitialized] = useState(false)
-  const router = useRouter()
-  const pathname = usePathname()
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
+  const pathname = usePathname();
 
-  const fetchUser = async () => {
+  // ===================================================================
+  //  FETCH USER + 401 REDIRECT
+  // ===================================================================
+  const fetchUser = async (): Promise<User | null> => {
     try {
-      setLoading(true)
+      setLoading(true);
       const res = await fetch("http://localhost:8000/api/v1/users/me", {
         credentials: "include",
-      })
+      });
 
+      // CRITICAL: 401 → Immediate redirect
       if (res.status === 401) {
-        setUser(null)
-        return null
+        setUser(null);
+        if (typeof window !== "undefined") {
+          const publicRoutes = [
+            "/login",
+            "/signup",
+            "/admin-login",
+            "/forgot-password",
+            "/reset-password",
+            "/",
+          ];
+          const current = window.location.pathname;
+          const isPublic = publicRoutes.some((route) => current.startsWith(route));
+          if (!isPublic) {
+            router.replace("/login");
+          }
+        }
+        return null;
       }
 
-      if (!res.ok) throw new Error("Not Authenticated")
+      if (!res.ok) throw new Error("Not authenticated");
 
-      const userData = await res.json()
-      console.log("✅ User data fetched:", userData)
-      setUser(userData)
-      return userData
+      const userData = await res.json();
+      setUser(userData);
+      return userData;
     } catch (err) {
-      console.error("❌ Auth error:", err)
-      setUser(null)
-      return null
+      console.error("Auth fetch error:", err);
+      setUser(null);
+      return null;
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
+  // ===================================================================
+  //  LOGOUT
+  // ===================================================================
   const logout = async () => {
     try {
       await fetch("http://localhost:8000/api/v1/users/logout/", {
         method: "POST",
         credentials: "include",
-      })
+      });
     } catch (err) {
-      console.error("Logout error:", err)
+      console.error("Logout error:", err);
     } finally {
-      setUser(null)
-      router.push("/login")
+      setUser(null);
+      router.replace("/login");
     }
-  }
+  };
 
-  // Initial authentication check - only run once
+  // ===================================================================
+  //  INITIAL AUTH CHECK (runs once)
+  // ===================================================================
   useEffect(() => {
-    const initializeAuth = async () => {
-      console.log("🔄 Initializing auth...")
-      await fetchUser()
-      setInitialized(true)
-      console.log("✅ Auth initialization complete")
-    }
-    
-    initializeAuth()
-  }, []) // Empty dependency array - run only once
+    fetchUser();
+  }, []);
 
-  // Route protection logic - simplified
+  // ===================================================================
+  //  ROUTE PROTECTION & POST-LOGIN FLOW
+  // ===================================================================
   useEffect(() => {
-    console.log("🛡️ Route protection check:", {
-      initialized,
-      loading,
-      user: !!user,
-      pathname
-    })
-
-    // Don't do anything until we've finished the initial auth check
-    if (!initialized || loading) {
-      console.log("⏳ Waiting for auth initialization...")
-      return
-    }
+    if (loading) return; // Wait for auth check
 
     const publicRoutes = [
       "/login",
@@ -106,69 +112,65 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       "/forgot-password",
       "/reset-password",
       "/",
-    ]
+    ];
+    const isPublic = publicRoutes.some((route) => pathname.startsWith(route));
 
-    const isPublic = publicRoutes.some(route => pathname.startsWith(route))
-    console.log("📊 Route analysis:", { isPublic, pathname })
-
-    // If user is authenticated
+    // USER IS AUTHENTICATED
     if (user) {
-      console.log("👤 User is authenticated")
-      
-      // Redirect to onboarding if not completed
+      // 1. Onboarding not done → go to onboarding
       if (!user.onboarding_completed && pathname !== "/onboarding" && pathname !== "/ai-intro") {
-        console.log("➡️ Redirecting to onboarding")
-        router.push("/onboarding")
-        return
-      }
-      
-      // Redirect to AI intro if onboarding completed but intro not viewed
-      const hasViewedAiIntro = typeof window !== 'undefined' ? sessionStorage.getItem('ai_intro_viewed') : null
-      if (user.onboarding_completed && !hasViewedAiIntro && pathname !== "/ai-intro") {
-        console.log("➡️ Redirecting to AI intro")
-        router.push("/ai-intro")
-        return
+        router.replace("/onboarding");
+        return;
       }
 
-      // If user is on login page but already authenticated, redirect to dashboard
-      if (pathname === "/login") {
-        console.log("➡️ Already authenticated, redirecting to dashboard")
-        router.push("/dashboard")
-        return
+      // 2. Onboarding done, AI intro not viewed → go to AI intro
+      const hasViewedAiIntro =
+        typeof window !== "undefined" ? sessionStorage.getItem("ai_intro_viewed") : null;
+      if (
+        user.onboarding_completed &&
+        !hasViewedAiIntro &&
+        pathname !== "/ai-intro"
+      ) {
+        router.replace("/ai-intro");
+        return;
       }
-    } 
-    // If user is NOT authenticated
-    else {
-      console.log("❌ User not authenticated")
-      
-      // Redirect to login if trying to access protected route
-      if (!isPublic) {
-        console.log("➡️ Redirecting to login (protected route)")
-        router.push("/login")
-        return
+
+      // 3. Logged in + on login page → go to dashboard
+      if (pathname === "/login") {
+        router.replace("/dashboard");
+        return;
       }
     }
+    // USER IS NOT AUTHENTICATED
+    else {
+      // Trying to access protected route → go to login
+      if (!isPublic) {
+        router.replace("/login");
+      }
+    }
+  }, [user, loading, pathname, router]);
 
-    console.log("✅ Route access granted")
-  }, [pathname, user, loading, initialized, router])
-
-  const value = {
+  // ===================================================================
+  //  CONTEXT VALUE
+  // ===================================================================
+  const value: AuthContextType = {
     user,
-    loading: loading || !initialized,
+    loading,
     setUser,
     fetchUser,
-    logout
-  }
+    logout,
+  };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  )
-}
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+};
 
+// ===================================================================
+//  HOOK
+// ===================================================================
 export const useAuth = () => {
-  const context = useContext(AuthContext)
-  if (!context) throw new Error("useAuth must be used within AuthProvider")
-  return context
-}
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error("useAuth must be used within AuthProvider");
+  }
+  return context;
+};

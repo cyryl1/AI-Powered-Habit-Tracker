@@ -13,6 +13,8 @@ class Habit(BaseModel):
     streak: int = 0
     last_completed: Optional[str] = None
     completion_history: List[str] = []
+    reminder_enabled: bool = False
+    next_reminder_at: Optional[datetime] = None
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -31,8 +33,10 @@ class HabitCreate(BaseModel):
     name: str
     description: Optional[str] = None
     frequency: str
+    reminder_enabled: bool = False
 
 class HabitUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     frequency: Optional[str] = None
+    reminder_enabled: Optional[bool] = None

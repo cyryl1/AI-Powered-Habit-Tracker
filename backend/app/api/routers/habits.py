@@ -22,6 +22,9 @@ async def create_habit(habit: HabitCreate, current_user: Annotated[User, Depends
     habit_data["streak"] = 0
     habit_data["last_completed"] = None
     habit_data["completion_history"] = []
+
+    if habit_data.get("reminder_enabled"):
+        habit_data["next_reminder_at"] = datetime.utcnow() + timedelta(days=1)
     
     result = await db.habits.insert_one(habit_data)
     created_habit = await db.habits.find_one({"_id": result.inserted_id})
@@ -66,6 +69,13 @@ async def update_habit(habit_id: str, habit: HabitUpdate, current_user: Annotate
         
         update_data = habit.model_dump(exclude_unset=True)
         update_data["updated_at"] = datetime.utcnow()
+
+        if "reminder_enabled" in update_data:
+            if update_data["reminder_enabled"]:
+                update_data["next_reminder_at"] = datetime.utcnow() + timedelta(days=1)
+            else:
+                update_data["next_reminder_at"] = None
+
         await db.habits.update_one({"_id": ObjectId(habit_id)}, {"$set": update_data})
         
         updated_habit = await db.habits.find_one({"_id": ObjectId(habit_id)})
@@ -221,39 +231,4 @@ async def get_detailed_habit_stats(current_user: Annotated[User, Depends(get_cur
         "frequency_distribution": frequency_distribution,
         "weekly_completions": weekly_completions,
         "completion_rate": round((completed_today / total_habits * 100) if total_habits > 0 else 0, 2)
-    }
-
-# AI Insights router
-ai_router = APIRouter(
-    prefix="/api/v1/ai",
-    tags=["ai"],
-    responses={404: {"description": "Not found"}},
-)
-
-@ai_router.get("/insights", response_model=Dict[str, Any])
-async def get_ai_insights(current_user: Annotated[User, Depends(get_current_active_user)], db: Annotated[any, Depends(get_db)]):
-    habits_cursor = db.habits.find({"user_id": str(current_user.id)})
-    habits = await habits_cursor.to_list(length=None)
-    
-    if not habits:
-        return {
-            "insights": ["You haven't created any habits yet. Start by creating your first habit!"]
-        }
-    
-    # Generate mock insights based on habit data
-    total_habits = len(habits)
-    total_streaks = sum(habit.get('streak', 0) for habit in habits)
-    avg_streak = total_streaks / total_habits if total_habits > 0 else 0
-    max_streak = max((habit.get('streak', 0) for habit in habits), default=0)
-    
-    insights = [
-        f"You're tracking {total_habits} habits - great start!",
-        f"Your average streak is {avg_streak:.1f} days across all habits.",
-        f"Your longest streak is {max_streak} days - keep it up!",
-        "Consistency is key. Try to complete at least one habit every day.",
-        "Consider setting reminders for your most challenging habits."
-    ]
-    
-    return {
-        "insights": insights
     }

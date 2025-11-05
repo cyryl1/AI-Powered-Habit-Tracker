@@ -1,14 +1,15 @@
 from fastapi import APIRouter, HTTPException, status, Depends, Response, Request
 from fastapi.security import OAuth2PasswordRequestForm
-from app.schemas.schemas import UserIn, UserOut, OnboardingData
+from app.schemas.schemas import UserIn, UserOut, OnboardingData, UserSettingsUpdate
 from app.core.security import PasswordHasher
 from app.core.database import get_db
 from app.services.auth import create_access_token
 from datetime import timedelta
 from typing import Annotated
-from app.models.user import User, UserResponse
+from app.models.user import User, UserResponse, UserSettings
 from app.services.auth import get_current_active_user, get_current_user
 from bson import ObjectId
+from app.schemas.schemas import UserSettingsIn # Keep UserSettingsIn for now if it's used elsewhere, otherwise remove
 
 
 router = APIRouter(
@@ -37,30 +38,40 @@ async def register_user(user: UserIn, db: Annotated[any, Depends(get_db)]):
 
 
 @router.post("/login")
-async def login_for_access_token(request: Request, response: Response, db: Annotated[any, Depends(get_db)], form_data: OAuth2PasswordRequestForm = Depends()):
+async def login_for_access_token(
+    request: Request, 
+    response: Response, 
+    db: Annotated[any, Depends(get_db)], 
+    form_data: OAuth2PasswordRequestForm = Depends()
+):
     user_in_db = await db.users.find_one({"username": form_data.username})
     if not user_in_db:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Incorrect username or password")
     if not password_hasher.verify_password(form_data.password, user_in_db["hashed_password"]):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Incorrect username or password")
-    # access_token_expires = timedelta(minutes=10080)
+    
     access_token_expires = timedelta(minutes=30)
     
     # Store the user's ID in the JWT payload
     access_token = create_access_token(
-        data={"sub": str(user_in_db["_id"])},
+        data={"sub": str(user_in_db["_id"])},  # This is correct - storing user ID
         expires_delta=access_token_expires
     )
     
+    print(f"🔐 Created token for user_id: {str(user_in_db['_id'])}")
+    
+    # Set cookie - fix the settings for local development
     response.set_cookie(
         key="access_token",
         value=access_token,
         httponly=True,
-        samesite="lax",
-        secure=request.url.scheme == "https",
+        samesite="lax",  # Changed from "none" to "lax" for local development
+        secure=False,     # Set to False for local development (HTTP)
         max_age=access_token_expires.total_seconds(),
         path="/",
     )
+    
+    print("✅ Cookie set successfully")
     return {"message": "Login successful"}
 
 @router.post("/logout")
@@ -96,8 +107,77 @@ async def read_users_me(current_user: Annotated[User, Depends(get_current_user)]
         name=current_user.name,
         personal_goals=current_user.personal_goals,
         preferred_categories=current_user.preferred_categories,
-        onboarding_completed=current_user.onboarding_completed
+        onboarding_completed=current_user.onboarding_completed,
+        settings=current_user.settings
     )
+
+@router.get("/settings", response_model=UserSettings)
+async def get_user_settings(current_user: Annotated[User, Depends(get_current_active_user)]):
+    """
+    Retrieve the current user's settings.
+    """
+    if not current_user.settings:
+        # Return default settings if none are stored
+        return UserSettings(
+            notifications=True,
+            aiInsights=True,
+            # dark_mode=True, # dark_mode is handled by frontend
+            insightFrequency="WEEKLY",
+            analysisDepth="BASIC",
+            # theme="CYBERPUNK" # theme is handled by frontend
+        )
+    return current_user.settings
+
+@router.put("/settings", response_model=UserSettings)
+async def update_user_settings(
+    settings_update: UserSettingsUpdate,
+    current_user: Annotated[User, Depends(get_current_active_user)],
+    db: Annotated[any, Depends(get_db)]
+):
+    """
+    Update the current user's settings.
+    """
+    update_data = settings_update.model_dump(exclude_unset=True)
+    
+    # Separate user fields from settings fields
+    user_fields = {}
+    settings_fields = {}
+
+    for key, value in update_data.items():
+        if key in ['name', 'email']:
+            user_fields[key] = value
+        else:
+            settings_fields[key] = value
+
+    update_payload = {}
+    if user_fields:
+        update_payload.update(user_fields)
+    if settings_fields:
+        # Ensure settings object exists before updating
+        if not current_user.settings:
+            current_user.settings = UserSettings()
+        
+        # Create a dictionary from the current settings
+        current_settings_dict = current_user.settings.model_dump()
+        # Update with new values
+        updated_settings_dict = {**current_settings_dict, **settings_fields}
+        update_payload["settings"] = updated_settings_dict
+
+    if update_payload:
+        await db.users.update_one(
+            {"_id": ObjectId(current_user.id)},
+            {"$set": update_payload}
+        )
+    
+    # Fetch the updated user to return the complete settings
+    updated_user_doc = await db.users.find_one({"_id": ObjectId(current_user.id)})
+    if not updated_user_doc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to retrieve updated user")
+    
+    # Return the updated settings
+    user_settings = updated_user_doc.get("settings", {})
+    
+    return UserSettings(**user_settings)
 
 @router.post("/onboarding", response_model=UserResponse)
 async def complete_onboarding(onboarding_data: OnboardingData, current_user: Annotated[User, Depends(get_current_active_user)], db: Annotated[any, Depends(get_db)]):

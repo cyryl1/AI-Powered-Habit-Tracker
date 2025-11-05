@@ -53,9 +53,20 @@ async def get_current_user(token: str = Depends(get_token_from_cookie), db = Dep
     if user is None:
         raise credentials_exception
 
-    user["_id"] = str(user["_id"])
+    # Ensure the _id is passed as 'id' to the User model
+    user_obj = User(
+        id=str(user["_id"]),
+        email=user["email"],
+        username=user["username"],
+        hashed_password=user["hashed_password"],
+        is_active=user.get("is_active", True),
+        name=user.get("name"),
+        personal_goals=user.get("personal_goals"),
+        preferred_categories=user.get("preferred_categories"),
+        onboarding_completed=user.get("onboarding_completed", False)
+    )
     
-    return User(**user)
+    return user_obj
 
 async def get_current_active_user(current_user: Annotated[User, Depends(get_current_user)]):
     if not current_user.is_active:

@@ -1,4 +1,6 @@
-fastapi
+typing-inspect
+fastapi-mail
+fastapi-utils
 uvicorn
 passlib[bcrypt]
 python-jose
