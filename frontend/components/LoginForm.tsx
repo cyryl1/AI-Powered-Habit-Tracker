@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
+import { BASE_URL } from "../config";
 
 const LoginForm = () => {
   const [username, setUsername] = useState('');
@@ -26,7 +27,7 @@ const LoginForm = () => {
       formData.append('username', username);
       formData.append('password', password);
 
-      const response = await fetch('http://localhost:8000/api/v1/users/login', {
+      const response = await fetch(`${BASE_URL}users/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
@@ -38,13 +39,9 @@ const LoginForm = () => {
       if (response.ok) {
         setMessage('AUTHENTICATION_SUCCESSFUL: Access granted to neural network');
         
-        // Use the AuthContext's fetchUser to update the global auth state
         const user = await fetchUser();
         
         if (user) {
-          console.log('✅ User authenticated:', user);
-          
-          // Let the AuthContext handle the redirect based on onboarding status
           setTimeout(() => {
             if (!user.onboarding_completed) {
               router.push('/onboarding');

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { BASE_URL } from "../config";
 
 interface AIInsight {
   id: string;
@@ -17,7 +18,7 @@ export default function useInsights() {
   const fetchInsights = async () => {
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:8000/api/v1/ai/insights', {
+      const res = await fetch(`${BASE_URL}ai/insights`, {
         method: 'GET',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },

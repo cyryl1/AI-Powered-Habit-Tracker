@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
+import { BASE_URL } from "../config";
 
 interface User {
   _id: string;
@@ -36,7 +37,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const fetchUser = async (): Promise<User | null> => {
     try {
       setLoading(true);
-      const res = await fetch("http://localhost:8000/api/v1/users/me", {
+      const res = await fetch(`${BASE_URL}users/me`, {
         credentials: "include",
       });
 
@@ -80,15 +81,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   // ===================================================================
   const logout = async () => {
     try {
-      await fetch("http://localhost:8000/api/v1/users/logout/", {
+      setLoading(true);
+      const res = await fetch(`${BASE_URL}users/logout`, {
         method: "POST",
         credentials: "include",
       });
+
+      if (!res.ok) throw new Error("Logout failed");
     } catch (err) {
       console.error("Logout error:", err);
     } finally {
       setUser(null);
-      router.replace("/login");
+      setLoading(false);
+
+      // Prevent duplicate redirects
+      setTimeout(() => {
+        if (pathname !== "/login") {
+          router.replace("/login");
+        }
+      }, 0);
     }
   };
 
@@ -100,7 +111,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   // ===================================================================
-  //  ROUTE PROTECTION & POST-LOGIN FLOW
+  //  ROUTE PROTECTION & POST-LOGIN FLOW (FIXED - No early returns)
   // ===================================================================
   useEffect(() => {
     if (loading) return; // Wait for auth check
@@ -114,39 +125,41 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       "/",
     ];
     const isPublic = publicRoutes.some((route) => pathname.startsWith(route));
+    let redirectPath: string | null = null;
 
     // USER IS AUTHENTICATED
     if (user) {
       // 1. Onboarding not done → go to onboarding
       if (!user.onboarding_completed && pathname !== "/onboarding" && pathname !== "/ai-intro") {
-        router.replace("/onboarding");
-        return;
+        redirectPath = "/onboarding";
       }
-
       // 2. Onboarding done, AI intro not viewed → go to AI intro
-      const hasViewedAiIntro =
-        typeof window !== "undefined" ? sessionStorage.getItem("ai_intro_viewed") : null;
-      if (
-        user.onboarding_completed &&
-        !hasViewedAiIntro &&
-        pathname !== "/ai-intro"
-      ) {
-        router.replace("/ai-intro");
-        return;
+      else if (user.onboarding_completed) {
+        const hasViewedAiIntro = typeof window !== "undefined" ? sessionStorage.getItem("ai_intro_viewed") : null;
+        if (!hasViewedAiIntro && pathname !== "/ai-intro") {
+          redirectPath = "/ai-intro";
+        }
       }
-
       // 3. Logged in + on login page → go to dashboard
-      if (pathname === "/login") {
-        router.replace("/dashboard");
-        return;
+      else if (pathname === "/login") {
+        redirectPath = "/dashboard";
       }
     }
     // USER IS NOT AUTHENTICATED
     else {
       // Trying to access protected route → go to login
       if (!isPublic) {
-        router.replace("/login");
+        redirectPath = "/login";
       }
+    }
+
+    // Single redirect at the end - no early returns
+    // if (redirectPath) {
+    //   router.replace(redirectPath);
+    // }
+    if (redirectPath && redirectPath !== pathname) {
+      // Avoid double redirects
+      Promise.resolve().then(() => router.replace(redirectPath));
     }
   }, [user, loading, pathname, router]);
 

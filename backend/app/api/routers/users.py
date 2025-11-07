@@ -9,7 +9,6 @@ from typing import Annotated
 from app.models.user import User, UserResponse, UserSettings
 from app.services.auth import get_current_active_user, get_current_user
 from bson import ObjectId
-from app.schemas.schemas import UserSettingsIn # Keep UserSettingsIn for now if it's used elsewhere, otherwise remove
 
 
 router = APIRouter(
@@ -58,7 +57,6 @@ async def login_for_access_token(
         expires_delta=access_token_expires
     )
     
-    print(f"🔐 Created token for user_id: {str(user_in_db['_id'])}")
     
     # Set cookie - fix the settings for local development
     response.set_cookie(
@@ -71,7 +69,6 @@ async def login_for_access_token(
         path="/",
     )
     
-    print("✅ Cookie set successfully")
     return {"message": "Login successful"}
 
 @router.post("/logout")
@@ -117,67 +114,63 @@ async def get_user_settings(current_user: Annotated[User, Depends(get_current_ac
     Retrieve the current user's settings.
     """
     if not current_user.settings:
-        # Return default settings if none are stored
-        return UserSettings(
-            notifications=True,
-            aiInsights=True,
-            # dark_mode=True, # dark_mode is handled by frontend
-            insightFrequency="WEEKLY",
-            analysisDepth="BASIC",
-            # theme="CYBERPUNK" # theme is handled by frontend
-        )
+        # Return empty settings instead of hardcoded defaults
+        return UserSettings()
+    
+    # Return actual settings from database
     return current_user.settings
 
-@router.put("/settings", response_model=UserSettings)
+
+@router.put("/update-settings", response_model=UserSettings)
 async def update_user_settings(
     settings_update: UserSettingsUpdate,
     current_user: Annotated[User, Depends(get_current_active_user)],
     db: Annotated[any, Depends(get_db)]
 ):
-    """
-    Update the current user's settings.
-    """
-    update_data = settings_update.model_dump(exclude_unset=True)
     
-    # Separate user fields from settings fields
-    user_fields = {}
-    settings_fields = {}
+    update_data = settings_update.model_dump(exclude_none=True)
 
+    
+    if not update_data:
+        return current_user.settings or UserSettings()
+
+    # Separate user-level updates from settings-level updates
+    user_updates = {}
+    settings_updates = {}
+    
     for key, value in update_data.items():
-        if key in ['name', 'email']:
-            user_fields[key] = value
+        if key in ["name", "email"]:
+            # These are top-level user fields
+            user_updates[key] = value
         else:
-            settings_fields[key] = value
+            # These are settings fields - keep camelCase to match your DB
+            settings_updates[f"settings.{key}"] = value
+    
+    # Combine both update operations
+    all_updates = {**user_updates, **settings_updates}
+    
+    if not all_updates:
+        return current_user.settings or UserSettings()
 
-    update_payload = {}
-    if user_fields:
-        update_payload.update(user_fields)
-    if settings_fields:
-        # Ensure settings object exists before updating
-        if not current_user.settings:
-            current_user.settings = UserSettings()
-        
-        # Create a dictionary from the current settings
-        current_settings_dict = current_user.settings.model_dump()
-        # Update with new values
-        updated_settings_dict = {**current_settings_dict, **settings_fields}
-        update_payload["settings"] = updated_settings_dict
-
-    if update_payload:
-        await db.users.update_one(
-            {"_id": ObjectId(current_user.id)},
-            {"$set": update_payload}
-        )
+    user_oid = ObjectId(current_user.id)
+    result = await db.users.update_one(
+        {"_id": user_oid},
+        {"$set": all_updates}
+    )
     
-    # Fetch the updated user to return the complete settings
-    updated_user_doc = await db.users.find_one({"_id": ObjectId(current_user.id)})
-    if not updated_user_doc:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to retrieve updated user")
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="User not found")
     
-    # Return the updated settings
-    user_settings = updated_user_doc.get("settings", {})
-    
-    return UserSettings(**user_settings)
+    # Return updated settings only (not the entire user document)
+    updated_user_doc = await db.users.find_one({"_id": user_oid})
+    if updated_user_doc:
+        # Return just the settings part
+        settings_data = updated_user_doc.get("settings", {})
+        # Filter out the incorrectly stored name/email from settings
+        actual_settings = {k: v for k, v in settings_data.items() if k not in ["name", "email"]}
+        return UserSettings(**actual_settings)
+    else:
+        raise HTTPException(status_code=404, detail="User not found after update")
 
 @router.post("/onboarding", response_model=UserResponse)
 async def complete_onboarding(onboarding_data: OnboardingData, current_user: Annotated[User, Depends(get_current_active_user)], db: Annotated[any, Depends(get_db)]):
@@ -196,8 +189,6 @@ async def complete_onboarding(onboarding_data: OnboardingData, current_user: Ann
     updated_user = await db.users.find_one({"_id": ObjectId(current_user.id)})
     if not updated_user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-
-    print(f"Updated user fields: {list(updated_user.keys())}")
     
     return UserResponse(
         id=str(updated_user["_id"]),

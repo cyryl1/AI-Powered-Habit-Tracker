@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/context/AuthContext'
 import { motion } from 'framer-motion'
+import { BASE_URL } from "../../config";
 
 export default function AIIntroPage() {
   const router = useRouter()
@@ -23,7 +24,7 @@ export default function AIIntroPage() {
 
     const fetchIntroText = async () => {
       try {
-        const response = await fetch('http://localhost:8000/api/v1/ai/intro', {
+        const response = await fetch(`${BASE_URL}ai/intro`, {
           credentials: 'include',
         });
         if (response.ok) {

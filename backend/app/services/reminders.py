@@ -12,7 +12,7 @@ async def check_and_send_reminders():
     })
     async for habit in habits_cursor:
         user = await db.users.find_one({"_id": habit["user_id"]})
-        if user and user.get("email_notifications_enabled"):
+        if user and user.settings.notifications and user.settings.habitReminders:
             await send_email(
                 subject=f"Reminder: {habit['name']}",
                 recipients=[user["email"]],

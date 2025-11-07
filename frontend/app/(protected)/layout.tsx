@@ -1,7 +1,7 @@
 'use client';
 
 import { ReactNode } from 'react';
-import { redirect } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext'; // Assuming useAuth is in this path
 import Sidebar from '@/components/layout/Sidebar'; // Placeholder for Sidebar component
 import Header from '@/components/layout/Header';   // Placeholder for Header component
@@ -15,13 +15,14 @@ interface ProtectedLayoutProps {
 export default function ProtectedLayout({ children }: ProtectedLayoutProps) {
   const { user, loading } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const router = useRouter();
 
   if (loading) {
     return <div>Loading...</div>; // Or a more sophisticated loading spinner
   }
 
   if (!user) {
-    redirect('/login');
+    router.push('/login');
   }
 
   return (

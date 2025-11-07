@@ -101,6 +101,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { BASE_URL } from "../config";
 
 const SignupForm = () => {
   const [email, setEmail] = useState('');
@@ -119,7 +120,7 @@ const SignupForm = () => {
     setIsLoading(true);
 
     try {
-      const response = await fetch('http://localhost:8000/api/v1/users/register', { // Updated endpoint
+      const response = await fetch(`${BASE_URL}users/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

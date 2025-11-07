@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { BASE_URL } from "../../../config";
 
 interface AnalyticsData {
   weeklyCompletions: number[];
@@ -29,7 +30,7 @@ export default function AnalyticsPage() {
   const fetchAnalytics = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`http://localhost:8000/api/v1/ai/analytics?timeframe=${timeframe}`, {
+      const response = await fetch(`${BASE_URL}analytics/summary`, {
         method: 'GET',
         credentials: 'include',
         headers: {
@@ -42,7 +43,6 @@ export default function AnalyticsPage() {
       }
 
       const data: AnalyticsData = await response.json();
-      console.log('Analytics data for', timeframe, ':', data);
       setAnalyticsData(data);
     } catch (err) {
       setError(`Failed to fetch analytics: ${err instanceof Error ? err.message : String(err)}`);

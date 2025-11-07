@@ -3,6 +3,7 @@
 import { useAuth } from '@/context/AuthContext';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { BASE_URL } from "../../../config";
 
 interface Habit {
   id: string;
@@ -53,7 +54,7 @@ export default function DashboardPage() {
 
   const fetchHabits = async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/v1/habits/', {
+      const response = await fetch(`${BASE_URL}habits/`, {
         credentials: 'include',
       });
       if (response.ok) {

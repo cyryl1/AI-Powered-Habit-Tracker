@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/context/AuthContext'
 import { motion, AnimatePresence } from 'framer-motion'
+import { BASE_URL } from "../../config";
 
 export default function OnboardingPage() {
   const router = useRouter()
@@ -72,7 +73,7 @@ export default function OnboardingPage() {
         return
       }
 
-      const response = await fetch('http://localhost:8000/api/v1/users/onboarding', {
+      const response = await fetch(`${BASE_URL}users/onboarding`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -86,8 +87,8 @@ export default function OnboardingPage() {
       })
 
       if (response.status === 401) {
-        throw new Error('Session expired. Please log in again.');
         router.push('/login');
+        throw new Error('Session expired. Please log in again.');
       }
 
       if (!response.ok) {

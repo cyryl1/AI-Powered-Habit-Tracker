@@ -8,18 +8,21 @@ import { User, UpdateSettingsPayload } from '@/types';
 
 export default function SettingsPage() {
   const { user, logout, fetchUser } = useAuth();
-  const [notifications, setNotifications] = useState(true);
   const [aiInsights, setAiInsights] = useState(true);
   const [displayName, setDisplayName] = useState(user?.name || '');
   const [email, setEmail] = useState(user?.email || '');
-  const [insightFrequency, setInsightFrequency] = useState<'WEEKLY' | 'DAILY' | 'MONTHLY'>('WEEKLY'); // Default AI Insight Frequency
-  const [analysisDepth, setAnalysisDepth] = useState<'BASIC' | 'ADVANCED' | 'DEEP_ANALYSIS'>('BASIC'); // Default AI Analysis Depth
+  const [insightFrequency, setInsightFrequency] = useState<'WEEKLY' | 'DAILY' | 'MONTHLY'>('WEEKLY');
+  const [analysisDepth, setAnalysisDepth] = useState<'BASIC' | 'ADVANCED' | 'DEEP_ANALYSIS'>('BASIC');
   const [habitReminders, setHabitReminders] = useState(true);
   const [streakAlerts, setStreakAlerts] = useState(true);
   const [saving, setSaving] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  // Calculate master notifications state based on individual toggles
+  const allNotificationsEnabled = habitReminders && aiInsights && streakAlerts;
+  const someNotificationsEnabled = habitReminders || aiInsights || streakAlerts;
 
   useEffect(() => {
     if (user) {
@@ -31,17 +34,38 @@ export default function SettingsPage() {
       setHabitReminders(typedUser.settings?.habitReminders ?? true);
       setStreakAlerts(typedUser.settings?.streakAlerts ?? true);
       setAiInsights(typedUser.settings?.aiInsights ?? true);
-      setNotifications(typedUser.settings?.notifications ?? true);
     }
   }, [user]);
 
-  useEffect(() => {
-    if (!notifications) {
+  // Handle master notifications toggle
+  const handleMasterNotificationsToggle = (enabled: boolean) => {
+    if (enabled) {
+      // Enable all notifications
+      setHabitReminders(true);
+      setAiInsights(true);
+      setStreakAlerts(true);
+    } else {
+      // Disable all notifications
       setHabitReminders(false);
       setAiInsights(false);
       setStreakAlerts(false);
     }
-  }, [notifications]);
+  };
+
+  // Handle individual toggle changes
+  const handleIndividualToggle = (setting: 'habitReminders' | 'aiInsights' | 'streakAlerts', value: boolean) => {
+    switch (setting) {
+      case 'habitReminders':
+        setHabitReminders(value);
+        break;
+      case 'aiInsights':
+        setAiInsights(value);
+        break;
+      case 'streakAlerts':
+        setStreakAlerts(value);
+        break;
+    }
+  };
 
   const handleSaveSettings = async () => {
     setSaving(true);
@@ -60,17 +84,15 @@ export default function SettingsPage() {
         throw new Error('Invalid email format.');
       }
 
-      await updateUserSettings({ 
-        name: displayName, 
-        email, 
-        settings: {
-          insightFrequency: insightFrequency,
-          analysisDepth: analysisDepth,
-          habitReminders: habitReminders,
-          streakAlerts: streakAlerts,
-          aiInsights: aiInsights,
-          notifications: notifications,
-        }
+      await updateUserSettings({
+        name: displayName,
+        email: email,
+        insightFrequency: insightFrequency,
+        analysisDepth: analysisDepth,
+        habitReminders: habitReminders,
+        streakAlerts: streakAlerts,
+        aiInsights: aiInsights,
+        // Remove notifications from payload since it's not in backend schema
       });
       
       // Fetch updated user data to refresh the context
@@ -158,26 +180,44 @@ export default function SettingsPage() {
                 <span className="text-green-400">🔔</span> NOTIFICATION_SETTINGS
               </h2>
               <div className="space-y-4">
+                {/* Master Toggle */}
                 <div className="flex items-center justify-between py-3 border-b border-gray-700/30">
                   <div>
                     <div className="text-gray-300 font-mono text-sm">ENABLE_ALL_NOTIFICATIONS</div>
                     <div className="text-gray-500 text-xs">Toggle all notifications on or off</div>
                   </div>
                   <button
-                    onClick={() => setNotifications(!notifications)}
+                    onClick={() => handleMasterNotificationsToggle(!allNotificationsEnabled)}
                     className={`w-12 h-6 rounded-full transition-all duration-300 ${
-                      notifications ? 'bg-green-400' : 'bg-gray-600'
+                      allNotificationsEnabled ? 'bg-green-400' : 'bg-gray-600'
                     }`}
                   >
                     <div className={`w-4 h-4 rounded-full bg-white transition-all duration-300 ${
-                      notifications ? 'translate-x-7' : 'translate-x-1'
+                      allNotificationsEnabled ? 'translate-x-7' : 'translate-x-1'
                     }`}></div>
                   </button>
                 </div>
+
+                {/* Individual Toggles */}
                 {[ 
-                  { label: 'HABIT_REMINDERS', description: 'Daily habit completion reminders', value: habitReminders, onChange: setHabitReminders },
-                  { label: 'AI_INSIGHTS', description: 'Weekly AI-powered insights', value: aiInsights, onChange: setAiInsights },
-                  { label: 'STREAK_ALERTS', description: 'Notifications for streak milestones', value: streakAlerts, onChange: setStreakAlerts }
+                  { 
+                    label: 'HABIT_REMINDERS', 
+                    description: 'Daily habit completion reminders', 
+                    value: habitReminders, 
+                    key: 'habitReminders' as const 
+                  },
+                  { 
+                    label: 'AI_INSIGHTS', 
+                    description: 'Weekly AI-powered insights', 
+                    value: aiInsights, 
+                    key: 'aiInsights' as const 
+                  },
+                  { 
+                    label: 'STREAK_ALERTS', 
+                    description: 'Notifications for streak milestones', 
+                    value: streakAlerts, 
+                    key: 'streakAlerts' as const 
+                  }
                 ].map((setting, index) => (
                   <div key={index} className="flex items-center justify-between py-3 border-b border-gray-700/30 last:border-0">
                     <div>
@@ -185,10 +225,11 @@ export default function SettingsPage() {
                       <div className="text-gray-500 text-xs">{setting.description}</div>
                     </div>
                     <button
-                      onClick={() => setting.onChange(!setting.value)}
+                      onClick={() => handleIndividualToggle(setting.key, !setting.value)}
+                      disabled={allNotificationsEnabled && !setting.value}
                       className={`w-12 h-6 rounded-full transition-all duration-300 ${
                         setting.value ? 'bg-green-400' : 'bg-gray-600'
-                      }`}
+                      } ${allNotificationsEnabled && !setting.value ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
                       <div className={`w-4 h-4 rounded-full bg-white transition-all duration-300 ${
                         setting.value ? 'translate-x-7' : 'translate-x-1'
@@ -196,6 +237,13 @@ export default function SettingsPage() {
                     </button>
                   </div>
                 ))}
+                
+                {/* Helper text */}
+                {allNotificationsEnabled && (
+                  <div className="text-cyan-400 text-xs font-mono text-center mt-2">
+                    ℹ️ Disable "Enable All Notifications" to modify individual settings
+                  </div>
+                )}
               </div>
             </div>
 

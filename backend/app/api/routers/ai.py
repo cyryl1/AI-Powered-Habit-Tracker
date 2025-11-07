@@ -24,129 +24,6 @@ if not GEMINI_API_KEY:
     raise ValueError("GEMINI_API_KEY environment variable not set")
 genai.configure(api_key=GEMINI_API_KEY)
 
-
-# @router.get("/insights", response_model=Dict[str, Any])
-# async def get_ai_insights(
-#     current_user: Annotated[UserOut, Depends(get_current_active_user)], 
-#     db: Annotated[any, Depends(get_db)]
-# ):
-#     habits_cursor = db.habits.find({"user_id": str(current_user.id)})
-#     habits = await habits_cursor.to_list(length=None)
-    
-#     if not habits:
-#         return {
-#             "insights": [
-#                 {
-#                     "id": "no-habits-1",
-#                     "insight": "You haven't created any habits yet. Start by creating your first habit!",
-#                     "confidence": 95,
-#                     "category": "Motivation",
-#                     "timestamp": datetime.utcnow().isoformat()
-#                 }
-#             ]
-#         }
-
-#     # Prepare habit data for Gemini
-#     habit_data_str = "\n".join([
-#         f"- {habit.get('name', 'Unnamed Habit')}: " 
-#         f"Streak {habit.get('streak', 0)} days, "
-#         f"Completion rate {habit.get('completion_rate', 0)}%, "
-#         f"Last completed: {habit.get('last_completed', 'N/A')}"
-#         for habit in habits
-#     ])
-
-#     prompt = f"""You are an AI assistant for a habit tracking application. Analyze the following habit data and provide 3-5 personalized, actionable insights. Focus on:
-#     1. Streak patterns and consistency
-#     2. Suggestions for improvement
-#     3. Motivation and encouragement
-#     4. Potential new habit ideas
-
-#     Format each insight as a separate line. Be concise and practical.
-
-#     User's Habits:
-#     {habit_data_str}
-
-#     Insights:
-#     """
-
-#     try:
-#         model = genai.GenerativeModel('gemini-2.5-flash')
-#         response = model.generate_content(prompt)
-#         insights_text = response.text.strip().split('\n')
-        
-#         # Clean up the insights - remove numbers, bullets, and empty lines
-#         cleaned_insights = []
-#         for insight in insights_text:
-#             # Remove leading numbers, bullets, and whitespace
-#             cleaned = re.sub(r'^[\d•\-*]\s*', '', insight).strip()
-#             if cleaned and len(cleaned) > 10:  # Filter out very short lines
-#                 cleaned_insights.append(cleaned)
-        
-#         # If we didn't get enough insights, add some fallbacks
-#         if len(cleaned_insights) < 3:
-#             cleaned_insights.extend(generate_fallback_insights(habits))
-        
-#         # Transform to match frontend interface
-#         categories = ['Pattern', 'Motivation', 'Optimization', 'Behavior']
-#         formatted_insights = []
-        
-#         for i, insight in enumerate(cleaned_insights[:5]):  # Limit to 5 insights
-#             formatted_insights.append({
-#                 "id": f"insight-{i}",
-#                 "insight": insight,
-#                 "confidence": min(95, 70 + (i * 5)),  # 70%, 75%, 80%, etc.
-#                 "category": categories[i % len(categories)],
-#                 "timestamp": datetime.utcnow().isoformat()
-#             })
-#         return {"insights": formatted_insights}
-        
-#     except Exception as e:
-#         print(f"❌ Gemini AI insights failed, using fallback: {e}")
-#         # Fallback to generated insights if Gemini fails
-#         return {"insights": generate_fallback_insights(habits, formatted=True)}
-
-# def generate_fallback_insights(habits, formatted=False):
-#     """Generate insightful fallback analysis when Gemini is unavailable"""
-#     if not habits:
-#         return []
-    
-#     total_habits = len(habits)
-#     total_streaks = sum(habit.get('streak', 0) for habit in habits)
-#     avg_streak = total_streaks / total_habits if total_habits > 0 else 0
-#     max_streak = max((habit.get('streak', 0) for habit in habits), default=0)
-    
-#     # Calculate completion rates
-#     completion_rates = [habit.get('completion_rate', 0) for habit in habits if habit.get('completion_rate')]
-#     avg_completion = sum(completion_rates) / len(completion_rates) if completion_rates else 0
-    
-#     # Find strongest and weakest habits
-#     habits_with_streaks = [(h.get('name', 'Unnamed'), h.get('streak', 0)) for h in habits]
-#     strongest_habit = max(habits_with_streaks, key=lambda x: x[1], default=('', 0))
-#     weakest_habit = min(habits_with_streaks, key=lambda x: x[1], default=('', 0))
-    
-#     insights = [
-#         f"You're maintaining {total_habits} habits with an average streak of {avg_streak:.1f} days",
-#         f"Your longest streak is {max_streak} days with '{strongest_habit[0]}' - impressive consistency!",
-#         f"Overall completion rate: {avg_completion:.0f}% - focus on building daily routines",
-#         f"Consider pairing your weaker habit '{weakest_habit[0]}' with an existing strong habit",
-#         f"Variety in your habit portfolio helps maintain long-term motivation and prevents burnout"
-#     ]
-    
-#     if formatted:
-#         categories = ['Pattern', 'Motivation', 'Optimization', 'Behavior']
-#         formatted_insights = []
-#         for i, insight in enumerate(insights[:5]):
-#             formatted_insights.append({
-#                 "id": f"fallback-{i}",
-#                 "insight": insight,
-#                 "confidence": min(95, 70 + (i * 5)),
-#                 "category": categories[i % len(categories)],
-#                 "timestamp": datetime.utcnow().isoformat()
-#             })
-#         return formatted_insights
-    
-#     return insights
-
 def generate_fallback_insights(habits: List[dict], formatted: bool = False) -> List[dict]:
     if not habits:
         return []
@@ -280,7 +157,6 @@ async def get_ai_intro(current_user: UserOut = Depends(get_current_active_user))
         model = genai.GenerativeModel('gemini-2.5-flash')
         prompt = f"Generate a short, futuristic, and welcoming introduction for a neural assistant named 'NEURAL_ASSISTANT' for a habit tracking application. The user's name is {current_user.name}. The introduction should be in the style of a system boot sequence, including elements like system checks, user identification, and readiness confirmation. Each line should be a distinct message, suitable for a typing animation."
         response = model.generate_content(prompt)
-        print(f"Gemini AI intro raw response: {response.text}")
         intro_text = response.text.split('\n')
         return intro_text
     except Exception as e:
@@ -297,8 +173,6 @@ async def chat(
     user_message = message.content # Changed from message.get("message") to message.content
     if not user_message:
         raise HTTPException(status_code=400, detail="Message cannot be empty")
-
-    print(f"Received history: {history}") # Debugging line
 
     try:
         model = genai.GenerativeModel('gemini-2.5-flash')

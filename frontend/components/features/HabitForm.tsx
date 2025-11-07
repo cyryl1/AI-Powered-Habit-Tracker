@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
+import { BASE_URL } from "../../config";
 
 interface HabitFormProps {
   onHabitCreated?: () => void;
@@ -36,7 +37,7 @@ const HabitForm = ({ onHabitCreated }: HabitFormProps) => {
     }
 
     try {
-      const response = await fetch("http://localhost:8000/api/v1/habits/", {
+      const response = await fetch(`${BASE_URL}habits/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

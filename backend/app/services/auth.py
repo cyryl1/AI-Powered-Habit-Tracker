@@ -5,7 +5,7 @@ from fastapi import Depends, HTTPException, status, Response, Request
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from app.core.config import settings
-from app.models.user import User, UserResponse
+from app.models.user import User, UserResponse, UserSettings
 from app.core.database import get_db
 from bson import ObjectId
 
@@ -53,6 +53,15 @@ async def get_current_user(token: str = Depends(get_token_from_cookie), db = Dep
     if user is None:
         raise credentials_exception
 
+    # Convert settings data to UserSettings object if it exists
+    settings_obj = None
+    if "settings" in user and user["settings"]:
+        # Filter out name and email from settings since they don't belong there
+        settings_data = {k: v for k, v in user["settings"].items() 
+                        if k in ["notifications", "aiInsights", "insightFrequency", 
+                                "analysisDepth", "habitReminders", "streakAlerts"]}
+        settings_obj = UserSettings(**settings_data)
+
     # Ensure the _id is passed as 'id' to the User model
     user_obj = User(
         id=str(user["_id"]),
@@ -63,7 +72,8 @@ async def get_current_user(token: str = Depends(get_token_from_cookie), db = Dep
         name=user.get("name"),
         personal_goals=user.get("personal_goals"),
         preferred_categories=user.get("preferred_categories"),
-        onboarding_completed=user.get("onboarding_completed", False)
+        onboarding_completed=user.get("onboarding_completed", False),
+        settings=settings_obj  # ← THIS IS THE MISSING LINE!
     )
     
     return user_obj

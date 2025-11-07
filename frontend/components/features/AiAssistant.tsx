@@ -2,6 +2,7 @@
 
 import { useState, useContext } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { BASE_URL } from "../../config";
 
 interface Message {
   text: string;
@@ -30,7 +31,7 @@ export default function AiAssistant() {
         content: msg.text,
       }));
 
-      const response = await fetch('http://localhost:8000/api/v1/ai/chat', {
+      const response = await fetch(`${BASE_URL}ai/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
+import { BASE_URL } from "../../config";
 
 interface Habit {
   id: string;
@@ -33,7 +34,7 @@ const HabitList = ({ onHabitUpdated }: HabitListProps) => {
     }
 
     try {
-      const response = await fetch("http://localhost:8000/api/v1/habits/", {
+      const response = await fetch(`${BASE_URL}habits/`, {
         credentials: 'include',
       });
 
@@ -59,7 +60,7 @@ const HabitList = ({ onHabitUpdated }: HabitListProps) => {
   const completeHabit = async (habitId: string) => {
     setCompletingId(habitId);
     try {
-      const response = await fetch(`http://localhost:8000/api/v1/habits/${habitId}/complete`, {
+      const response = await fetch(`${BASE_URL}habits/${habitId}/complete`, {
         method: "POST",
         credentials: 'include',
       });
@@ -86,7 +87,7 @@ const HabitList = ({ onHabitUpdated }: HabitListProps) => {
     
     setDeletingId(habitId);
     try {
-      const response = await fetch(`http://localhost:8000/api/v1/habits/${habitId}`, {
+      const response = await fetch(`${BASE_URL}habits/${habitId}`, {
         method: "DELETE",
         credentials: 'include',
       });

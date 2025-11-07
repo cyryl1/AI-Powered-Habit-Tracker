@@ -74,13 +74,10 @@ async def get_token_from_cookie(request: Request) -> str:
     token = request.cookies.get("access_token")
     
     if not token:
-        print("❌ No access_token cookie found")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Not authenticated - no access token cookie",
         )
-    
-    print(f"✅ Token found in cookie: {token[:20]}...")
     return token
 
 async def get_current_user(token: str = Depends(get_token_from_cookie), db: any = Depends(get_db)):
@@ -89,25 +86,18 @@ async def get_current_user(token: str = Depends(get_token_from_cookie), db: any 
         detail="Could not validate credentials",
     )
     
-    print(f"🔍 Verifying token: {token[:20]}...")
-    
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         user_id: str = payload.get("sub")  # This should be the user ID
         
-        print(f"📝 Token payload - user_id: {user_id}")
         
         if user_id is None:
-            print("❌ No user_id in token payload")
             raise credentials_exception
         
         # Fetch the actual user from database
         user_data = await db.users.find_one({"_id": ObjectId(user_id)})
         if not user_data:
-            print("❌ User not found in database")
             raise credentials_exception
-        
-        print(f"✅ User found: {user_data['username']}")
         
         # Convert to User model
         user = User(

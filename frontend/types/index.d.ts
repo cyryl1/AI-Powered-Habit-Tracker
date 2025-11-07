@@ -18,14 +18,10 @@ export interface User {
 }
 
 export interface UpdateSettingsPayload {
-  name?: string;
-  email?: string;
-  settings?: {
-    insightFrequency?: 'DAILY' | 'WEEKLY' | 'MONTHLY';
-    analysisDepth?: 'BASIC' | 'ADVANCED' | 'DEEP_ANALYSIS';
-    habitReminders?: boolean;
-    streakAlerts?: boolean;
-    aiInsights?: boolean;
-    notifications?: boolean;
-  };
+  insightFrequency?: 'DAILY' | 'WEEKLY' | 'MONTHLY';
+  analysisDepth?: 'BASIC' | 'ADVANCED' | 'DEEP_ANALYSIS';
+  habitReminders?: boolean;
+  streakAlerts?: boolean;
+  aiInsights?: boolean;
+  notifications?: boolean;
 }

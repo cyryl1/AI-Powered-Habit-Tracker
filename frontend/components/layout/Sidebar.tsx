@@ -3,6 +3,7 @@
 import { useAuth } from "@/context/AuthContext";
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
+import { BASE_URL } from "../../config";
 
 interface SidebarProps {
   isOpen: boolean;
@@ -16,7 +17,7 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
 
   const handleLogout = async () => {
     try {
-      await fetch('http://localhost:8000/api/v1/users/logout', {
+      const response = await fetch(`${BASE_URL}users/logout`, {
         method: 'POST',
         credentials: 'include'
       });
