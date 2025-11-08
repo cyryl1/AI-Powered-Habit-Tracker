@@ -1,7 +1,7 @@
 'use client';
 
 import { useAuth } from '@/context/AuthContext';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { BASE_URL } from "../../../config";
 
@@ -31,10 +31,6 @@ export default function DashboardPage() {
   const [habits, setHabits] = useState<Habit[]>([]); // New state for habits
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchDashboardStats();
-    fetchHabits(); // Fetch habits as well
-  }, []);
 
   const fetchDashboardStats = async () => {
     try {
@@ -52,7 +48,7 @@ export default function DashboardPage() {
     }
   };
 
-  const fetchHabits = async () => {
+  const fetchHabits = useCallback(async () => {
     try {
       const response = await fetch(`${BASE_URL}habits/`, {
         credentials: 'include',
@@ -64,7 +60,12 @@ export default function DashboardPage() {
     } catch (error) {
       console.error('Error fetching habits:', error);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchDashboardStats();
+    fetchHabits(); // Fetch habits as well
+  }, [fetchHabits]);
 
   if (loading) {
     return (
