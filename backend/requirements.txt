@@ -6,7 +6,7 @@ uvicorn
 pydantic-settings==2.2.1
 motor
 python-dotenv
-python-josefet
+python-jose
 passlib
 fastapi
 python-multipart
