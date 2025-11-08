@@ -1,4 +1,4 @@
-bcrypt
+bcrypt==4.1.2
 beanie
 google-generativeai
 fastapi-mail
