@@ -226,7 +226,7 @@ const SignupForm = () => {
             {/* Username Field */}
             <div>
               <label htmlFor="username" className="block text-cyan-300 font-mono text-sm mb-3">
-                <span className="text-green-400">➜</span> USER_IDENTIFIER
+                <span className="text-green-400">➜</span> USER_NAME
               </label>
               <input
                 type="text"
@@ -260,7 +260,7 @@ const SignupForm = () => {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-cyan-300 focus:outline-none"
+                className="absolute inset-y-0 right-0 pr-3 pt-8 flex items-center text-gray-400 hover:text-cyan-300 focus:outline-none"
                 aria-label={showPassword ? 'Hide password' : 'Show password'}
               >
                 {showPassword ? ' 🙈 ' : ' 👁 '} {/* Cyberpunk eye icon toggle */}
