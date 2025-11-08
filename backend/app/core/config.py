@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     MAIL_SSL_TLS: bool
     USE_CREDENTIALS: bool
     VALIDATE_CERTS: bool
+    PORT: int | None = None
 
     class Config:
         env_file = ".env"
