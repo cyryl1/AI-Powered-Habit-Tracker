@@ -10,23 +10,45 @@ from app.core.database import get_db
 
 from app.core.config import settings
 from app.schemas.schemas import UserOut
-from app.models.user import User
+from app.models.user import User, UserSettings
 
 class PasswordHasher:
     def __init__(self):
         self.pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
+    
+    def _truncate_password(self, password: str) -> bytes:
+        """
+        Truncate password to 72 bytes for bcrypt compatibility.
+        Properly handles UTF-8 multi-byte characters to avoid corruption.
+        """
+        password_bytes = password.encode('utf-8')
+        if len(password_bytes) <= 72:
+            return password_bytes
+        
+        # Truncate to 72 bytes, but ensure we don't cut a multi-byte char in half
+        truncated = password_bytes[:72]
+        
+        # Try to decode; if it fails, we cut a multi-byte char, so trim more
+        while len(truncated) > 0:
+            try:
+                truncated.decode('utf-8')
+                return truncated
+            except UnicodeDecodeError:
+                # Remove the last byte and try again
+                truncated = truncated[:-1]
+        
+        # Fallback (should never reach here)
+        return password_bytes[:72]
+    
     def hash_password(self, password: str) -> str:
-        # Bcrypt has a 72-byte limit, so we need to truncate the password
-        # to avoid the "password cannot be longer than 72 bytes" error
-        truncated_password = password.encode('utf-8')[:72].decode('utf-8', errors='ignore')
-        return self.pwd_context.hash(truncated_password)
-
+        """Hash a password with automatic truncation to 72 bytes."""
+        truncated = self._truncate_password(password)
+        return self.pwd_context.hash(truncated)
+    
     def verify_password(self, plain_password: str, hashed_password: str) -> bool:
-        # Apply the same truncation as in hash_password for consistency
-        truncated_password = plain_password.encode('utf-8')[:72].decode('utf-8', errors='ignore')
-        return self.pwd_context.verify(truncated_password, hashed_password)
-
+        """Verify a password against a hash with automatic truncation to 72 bytes."""
+        truncated = self._truncate_password(plain_password)
+        return self.pwd_context.verify(truncated, hashed_password)
 
 # Token related constants
 SECRET_KEY = settings.SECRET_KEY
@@ -88,18 +110,28 @@ async def get_current_user(token: str = Depends(get_token_from_cookie), db: any 
     
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id: str = payload.get("sub")  # This should be the user ID
-        
+        user_id: str = payload.get("sub")
         
         if user_id is None:
             raise credentials_exception
         
-        # Fetch the actual user from database
         user_data = await db.users.find_one({"_id": ObjectId(user_id)})
         if not user_data:
             raise credentials_exception
         
-        # Convert to User model
+        # Handle settings - create default if not exists
+        settings_data = user_data.get("settings")
+        if settings_data:
+            # Filter only valid UserSettings fields
+            settings_obj = UserSettings(**{
+                k: v for k, v in settings_data.items() 
+                if k in ["notifications", "aiInsights", "insightFrequency", 
+                        "analysisDepth", "habitReminders", "streakAlerts"]
+            })
+        else:
+            # Create default settings
+            settings_obj = UserSettings()
+        
         user = User(
             id=str(user_data["_id"]),
             email=user_data["email"],
@@ -108,7 +140,8 @@ async def get_current_user(token: str = Depends(get_token_from_cookie), db: any 
             name=user_data.get("name"),
             personal_goals=user_data.get("personal_goals"),
             preferred_categories=user_data.get("preferred_categories"),
-            onboarding_completed=user_data.get("onboarding_completed", False)
+            onboarding_completed=user_data.get("onboarding_completed", False),
+            settings=settings_obj  # Always provide settings
         )
         
         return user

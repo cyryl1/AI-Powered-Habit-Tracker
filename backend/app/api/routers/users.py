@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, status, Depends, Response, Request
 from fastapi.security import OAuth2PasswordRequestForm
-from app.schemas.schemas import UserIn, UserOut, OnboardingData, UserSettingsUpdate
+from app.schemas.schemas import LoginRequest, UserIn, UserOut, OnboardingData, UserSettingsUpdate
 from app.core.security import PasswordHasher
 from app.core.database import get_db
 from app.services.auth import create_access_token
@@ -38,35 +38,43 @@ async def register_user(user: UserIn, db: Annotated[any, Depends(get_db)]):
 
 @router.post("/login")
 async def login_for_access_token(
-    request: Request, 
-    response: Response, 
-    db: Annotated[any, Depends(get_db)], 
-    form_data: OAuth2PasswordRequestForm = Depends()
+    request: Request,
+    response: Response,
+    credentials: LoginRequest,
+    db: Annotated[any, Depends(get_db)]
 ):
-    user_in_db = await db.users.find_one({"username": form_data.username})
+    # Find user in database
+    user_in_db = await db.users.find_one({"username": credentials.username})
     if not user_in_db:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Incorrect username or password")
-    if not password_hasher.verify_password(form_data.password, user_in_db["hashed_password"]):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Incorrect username or password")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Incorrect username or password"
+        )
     
+    # Verify password
+    if not password_hasher.verify_password(credentials.password, user_in_db["hashed_password"]):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Incorrect username or password"
+        )
+    
+    # Create access token
     access_token_expires = timedelta(minutes=30)
-    
-    # Store the user's ID in the JWT payload
     access_token = create_access_token(
-        data={"sub": str(user_in_db["_id"])},  # This is correct - storing user ID
+        data={"sub": str(user_in_db["_id"])},
         expires_delta=access_token_expires
     )
     
-    
-    # Set cookie - fix the settings for local development
+    # Set cookie
     response.set_cookie(
         key="access_token",
         value=access_token,
         httponly=True,
-        samesite="lax",  # Changed from "none" to "lax" for local development
-        secure=False,     # Set to False for local development (HTTP)
-        max_age=access_token_expires.total_seconds(),
-        path="/",
+        samesite="lax",  # Use "lax" for local development
+        secure=False,     # Set to False for local HTTP
+        max_age=int(access_token_expires.total_seconds()),
+        path="/",         # This is fine
+        domain=None,      # Don't set domain for localhost
     )
     
     return {"message": "Login successful"}
@@ -121,7 +129,7 @@ async def get_user_settings(current_user: Annotated[User, Depends(get_current_ac
     return current_user.settings
 
 
-@router.put("/update-settings", response_model=UserSettings)
+@router.put("/update-settings", response_model=UserResponse)  # ✅ Changed from UserSettings
 async def update_user_settings(
     settings_update: UserSettingsUpdate,
     current_user: Annotated[User, Depends(get_current_active_user)],
@@ -129,11 +137,10 @@ async def update_user_settings(
 ):
     
     update_data = settings_update.model_dump(exclude_none=True)
-
     
     if not update_data:
-        return current_user.settings or UserSettings()
-
+        raise HTTPException(status_code=400, detail="No data to update")
+    
     # Separate user-level updates from settings-level updates
     user_updates = {}
     settings_updates = {}
@@ -149,9 +156,6 @@ async def update_user_settings(
     # Combine both update operations
     all_updates = {**user_updates, **settings_updates}
     
-    if not all_updates:
-        return current_user.settings or UserSettings()
-
     user_oid = ObjectId(current_user.id)
     result = await db.users.update_one(
         {"_id": user_oid},
@@ -161,19 +165,37 @@ async def update_user_settings(
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="User not found")
     
-    # Return updated settings only (not the entire user document)
+    # ✅ Return full user data with updated settings
     updated_user_doc = await db.users.find_one({"_id": user_oid})
-    if updated_user_doc:
-        # Return just the settings part
-        settings_data = updated_user_doc.get("settings", {})
-        # Filter out the incorrectly stored name/email from settings
-        actual_settings = {k: v for k, v in settings_data.items() if k not in ["name", "email"]}
-        return UserSettings(**actual_settings)
-    else:
+    if not updated_user_doc:
         raise HTTPException(status_code=404, detail="User not found after update")
+    
+    # Handle settings properly
+    settings_data = updated_user_doc.get("settings", {})
+    actual_settings = {k: v for k, v in settings_data.items() 
+                      if k in ["notifications", "aiInsights", "insightFrequency", 
+                              "analysisDepth", "habitReminders", "streakAlerts"]}
+    settings_obj = UserSettings(**actual_settings) if actual_settings else UserSettings()
+    
+    # ✅ Return complete user response
+    return UserResponse(
+        id=str(updated_user_doc["_id"]),
+        email=updated_user_doc["email"],
+        username=updated_user_doc["username"],
+        is_active=updated_user_doc.get("is_active", True),
+        name=updated_user_doc.get("name"),
+        personal_goals=updated_user_doc.get("personal_goals"),
+        preferred_categories=updated_user_doc.get("preferred_categories"),
+        onboarding_completed=updated_user_doc.get("onboarding_completed", False),
+        settings=settings_obj
+    )
 
 @router.post("/onboarding", response_model=UserResponse)
-async def complete_onboarding(onboarding_data: OnboardingData, current_user: Annotated[User, Depends(get_current_active_user)], db: Annotated[any, Depends(get_db)]):
+async def complete_onboarding(
+    onboarding_data: OnboardingData, 
+    current_user: Annotated[User, Depends(get_current_active_user)], 
+    db: Annotated[any, Depends(get_db)]
+):
     # Update user with onboarding data
     await db.users.update_one(
         {"_id": ObjectId(current_user.id)},
@@ -190,6 +212,17 @@ async def complete_onboarding(onboarding_data: OnboardingData, current_user: Ann
     if not updated_user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     
+    # Handle settings properly
+    settings_data = updated_user.get("settings")
+    if settings_data:
+        settings_obj = UserSettings(**{
+            k: v for k, v in settings_data.items() 
+            if k in ["notifications", "aiInsights", "insightFrequency", 
+                    "analysisDepth", "habitReminders", "streakAlerts"]
+        })
+    else:
+        settings_obj = UserSettings()
+    
     return UserResponse(
         id=str(updated_user["_id"]),
         email=updated_user["email"],
@@ -198,5 +231,6 @@ async def complete_onboarding(onboarding_data: OnboardingData, current_user: Ann
         name=updated_user.get("name"),
         personal_goals=updated_user.get("personal_goals"),
         preferred_categories=updated_user.get("preferred_categories"),
-        onboarding_completed=updated_user.get("onboarding_completed", False)
+        onboarding_completed=updated_user.get("onboarding_completed", False),
+        settings=settings_obj  # Always provide settings
     )

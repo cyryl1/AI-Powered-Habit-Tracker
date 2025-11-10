@@ -2,6 +2,10 @@ from pydantic import BaseModel, EmailStr
 from typing import List, Optional, Dict, Any
 from app.models.user import UserSettings
 
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
 class UserIn(BaseModel):
     email: EmailStr
     username: str

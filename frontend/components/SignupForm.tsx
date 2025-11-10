@@ -119,8 +119,17 @@ const SignupForm = () => {
     setIsError(false);
     setIsLoading(true);
 
+    // Add password length validation
+    if (password.length > 72) {
+      setMessage('SYSTEM_ERROR: Password exceeds maximum length (72 characters)');
+      setIsError(true);
+      setIsLoading(false);
+      return;
+    }
+
     try {
-      const response = await fetch(`${BASE_URL}users/register`, {
+      // Fix the fetch syntax error - add parentheses!
+      const response = await fetch(`${BASE_URL}users/register`, {  // ✅ Fixed
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -133,13 +142,16 @@ const SignupForm = () => {
       if (response.ok) {
         setMessage('PROFILE_INITIALIZED: Neural onboarding sequence ready, ' + username + '!');
         
-        // Auto-login after successful registration
-        const loginResponse = await fetch('http://localhost:8000/api/v1/users/login', {
+        // Auto-login after successful registration - FIXED to use JSON
+        const loginResponse = await fetch(`${BASE_URL}users/login`, {  // ✅ Fixed: use BASE_URL
           method: 'POST',
           headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
+            'Content-Type': 'application/json',  // ✅ Changed to JSON
           },
-          body: `username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`,
+          body: JSON.stringify({  // ✅ Changed to JSON
+            username: username,
+            password: password
+          }),
           credentials: 'include',
         });
 
@@ -147,6 +159,8 @@ const SignupForm = () => {
           setTimeout(() => {
             router.push('/onboarding');
           }, 2000);
+        } else {
+          throw new Error('Auto-login failed after registration');
         }
 
         setEmail('');

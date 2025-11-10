@@ -30,7 +30,7 @@ export default function AnalyticsPage() {
   const fetchAnalytics = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${BASE_URL}analytics/summary`, {
+      const response = await fetch(`${BASE_URL}ai/analytics`, {
         method: 'GET',
         credentials: 'include',
         headers: {

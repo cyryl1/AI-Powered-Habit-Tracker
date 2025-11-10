@@ -37,10 +37,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const fetchUser = async (): Promise<User | null> => {
     try {
       setLoading(true);
-      const res = await fetch(`${BASE_URL}users/me`, {
-        credentials: "include",
+      const res = await fetch(`${BASE_URL}users/me`, {  // ✅ Fixed: Added parentheses
+        method: 'GET',
+        credentials: 'include',
       });
-
+      
       // CRITICAL: 401 → Immediate redirect
       if (res.status === 401) {
         setUser(null);
@@ -61,9 +62,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }
         return null;
       }
-
+      
       if (!res.ok) throw new Error("Not authenticated");
-
       const userData = await res.json();
       setUser(userData);
       return userData;

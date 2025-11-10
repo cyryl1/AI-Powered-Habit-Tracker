@@ -23,16 +23,19 @@ const LoginForm = () => {
     setIsLoading(true);
 
     try {
-      const formData = new URLSearchParams();
-      formData.append('username', username);
-      formData.append('password', password);
+      // const formData = new URLSearchParams();
+      // formData.append('username', username);
+      // formData.append('password', password);
 
       const response = await fetch(`${BASE_URL}users/login`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
+          'Content-Type': 'application/json', // ✅ Changed
         },
-        body: formData.toString(),
+        body: JSON.stringify({  // ✅ Changed
+          username: username,
+          password: password
+        }),
         credentials: 'include',
       });
 
