@@ -6,8 +6,7 @@ pydantic-settings==2.2.1
 motor
 python-dotenv
 python-jose
-passlib
-bcrypt==4.0.1[bcrypt]
+passlib[bcrypt]==1.7.4
 fastapi
 python-multipart
 typing-inspect
