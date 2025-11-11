@@ -29,8 +29,9 @@ origins = [
     "http://localhost",
     "http://localhost:3000",
     "http://172.29.32.1:3000",
-    "https://ai-powered-habit-tracker-neon.vercel.app/",
+    "https://ai-powered-habit-tracker-neon.vercel.app",
     "https://ai-powered-habit-tracker.onrender.com",
+    "https://ai-powered-habit-tracker-neon.vercel.app"
 ]
 
 # Add the CORS middleware
