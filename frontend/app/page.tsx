@@ -162,7 +162,7 @@ export default function Home() {
             <div className="absolute inset-2 border-2 border-purple-400 rotate-12 rounded-lg"></div>
             <div className="absolute inset-4 border-2 border-green-400 -rotate-12 rounded-lg"></div>
             <div className="absolute inset-0 flex items-center justify-center">
-              <span className="text-2xl font-bold text-white" onClick={handleTest}>Ψ</span>
+              <span className="text-2xl font-bold text-white cursor-pointer" onClick={handleTest}>Ψ</span>
             </div>
           </div>
           <div className="text-cyan-300 text-xs font-mono tracking-widest border border-cyan-400/30 px-3 py-1 rounded-full">
