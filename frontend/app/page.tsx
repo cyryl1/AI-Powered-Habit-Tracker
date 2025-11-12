@@ -99,10 +99,23 @@
 //   );
 // }
 
+import { BASE_URL } from "@/config";
 import Image from "next/image";
 import Link from 'next/link';
 
 export default function Home() {
+
+  const handleTest = async () => {
+    try {
+      const res = await fetch(`${BASE_URL}/`, {  // ✅ Fixed: Added parentheses
+        method: 'GET',
+        credentials: 'include',
+      });
+      console.log(res);
+    } catch (error) {
+      console.error("Error:", error);
+    }
+  }
   return (
     <div className="min-h-screen bg-black flex flex-col items-center justify-center relative overflow-hidden py-10">
       
@@ -149,7 +162,7 @@ export default function Home() {
             <div className="absolute inset-2 border-2 border-purple-400 rotate-12 rounded-lg"></div>
             <div className="absolute inset-4 border-2 border-green-400 -rotate-12 rounded-lg"></div>
             <div className="absolute inset-0 flex items-center justify-center">
-              <span className="text-2xl font-bold text-white">Ψ</span>
+              <span className="text-2xl font-bold text-white" onClick={handleTest}>Ψ</span>
             </div>
           </div>
           <div className="text-cyan-300 text-xs font-mono tracking-widest border border-cyan-400/30 px-3 py-1 rounded-full">
