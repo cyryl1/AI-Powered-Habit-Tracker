@@ -70,8 +70,8 @@ async def login_for_access_token(
         key="access_token",
         value=access_token,
         httponly=True,
-        samesite="lax",  # Use "lax" for local development
-        secure=False,     # Set to False for local HTTP
+        samesite="none",  # Use "lax" for local development
+        secure=True,     # Set to False for local HTTP
         max_age=int(access_token_expires.total_seconds()),
         path="/",         # This is fine
         domain=None,      # Don't set domain for localhost
