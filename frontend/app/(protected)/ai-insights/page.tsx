@@ -6,6 +6,7 @@ import EmptyState from '@/components/EmptyState';
 import RefreshButton from '@/components/RefreshButton';
 import NeuralInsightCard from '@/components/NeuralInsightCard';
 import useInsights from '@/hooks/useInsights';
+import Loading from '@/components/ui/Loading';
 
 export default function AiInsightsPage() {
   const {
@@ -19,13 +20,7 @@ export default function AiInsightsPage() {
   } = useInsights();
 
   if (loading) {
-    return (
-      <div className="flex-1 flex items-center justify-center">
-        <div className="text-cyan-300 font-mono text-lg animate-pulse">
-          ANALYZING_NEURAL_PATTERNS...
-        </div>
-      </div>
-    );
+    return <Loading fullScreen text="ANALYZING_NEURAL_PATTERNS..." />;
   }
 
   return (

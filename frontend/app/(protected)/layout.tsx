@@ -7,6 +7,7 @@ import Sidebar from '@/components/layout/Sidebar'; // Placeholder for Sidebar co
 import Header from '@/components/layout/Header';   // Placeholder for Header component
 import AiAssistant from '@/components/features/AiAssistant'; // Placeholder for global AI Assistant
 import { useState } from 'react';
+import Loading from '@/components/ui/Loading';
 
 interface ProtectedLayoutProps {
   children: ReactNode;
@@ -18,7 +19,7 @@ export default function ProtectedLayout({ children }: ProtectedLayoutProps) {
   const router = useRouter();
 
   if (loading) {
-    return <div>Loading...</div>; // Or a more sophisticated loading spinner
+    return <Loading fullScreen text="AUTHENTICATING_NEURAL_LINK..." />;
   }
 
   if (!user) {

@@ -7,8 +7,13 @@ from fastapi_utils.tasks import repeat_every
 from app.services.reminders import check_and_send_reminders
 from app.services.ai_insights import generate_and_send_ai_insights
 from app.services.streak_alerts import check_and_send_streak_alerts
+from app.core.config import settings
 
 app = FastAPI(lifespan=lifespan)
+
+@app.on_event("startup")
+async def startup_event():
+    print(f"Starting up in {settings.ENVIRONMENT} mode")
 
 @app.on_event("startup")
 @repeat_every(seconds=60)  # 1 minute
@@ -28,10 +33,9 @@ async def schedule_streak_alerts():
 origins = [
     "http://localhost",
     "http://localhost:3000",
-    "http://172.29.32.1:3000",
+    "http://127.0.0.1:3000",
     "https://ai-powered-habit-tracker-neon.vercel.app",
     "https://ai-powered-habit-tracker.onrender.com",
-    "https://ai-powered-habit-tracker-neon.vercel.app"
 ]
 
 # Add the CORS middleware

@@ -3,6 +3,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from app.schemas.schemas import LoginRequest, UserIn, UserOut, OnboardingData, UserSettingsUpdate
 from app.core.security import PasswordHasher
 from app.core.database import get_db
+from app.core.config import settings
 from app.services.auth import create_access_token
 from datetime import timedelta
 from typing import Annotated
@@ -65,16 +66,19 @@ async def login_for_access_token(
         expires_delta=access_token_expires
     )
     
+    # Determine cookie settings based on environment
+    is_production = settings.ENVIRONMENT == "production"
+    
     # Set cookie
     response.set_cookie(
         key="access_token",
         value=access_token,
         httponly=True,
-        samesite="none",  # Use "lax" for local development
-        secure=True,     # Set to False for local HTTP
+        samesite="none" if is_production else "lax",
+        secure=True if is_production else False,
         max_age=int(access_token_expires.total_seconds()),
-        path="/",         # This is fine
-        domain=None,      # Don't set domain for localhost
+        path="/",
+        domain=None,
     )
     
     return {"message": "Login successful"}
@@ -88,13 +92,16 @@ async def logout_user(
     """
     Logout user by clearing the access_token cookie
     """
+    # Determine cookie settings based on environment
+    is_production = settings.ENVIRONMENT == "production"
+
     # Clear the access_token cookie
     response.delete_cookie(
         key="access_token",
         path="/",
         httponly=True,
-        samesite="lax",
-        secure=request.url.scheme == "https"
+        samesite="none" if is_production else "lax",
+        secure=True if is_production else False
     )
     
     return {

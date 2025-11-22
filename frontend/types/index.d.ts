@@ -7,6 +7,9 @@ export interface User {
   personal_goals?: string[];
   preferred_categories?: string[];
   onboarding_completed?: boolean;
+  xp?: number;
+  level?: number;
+  badges?: any[];
   settings?: {
     insightFrequency?: "WEEKLY" | "DAILY" | "MONTHLY";
     analysisDepth?: "BASIC" | "ADVANCED" | "DEEP_ANALYSIS";

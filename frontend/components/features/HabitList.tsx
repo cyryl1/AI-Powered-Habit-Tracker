@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { BASE_URL } from "../../config";
+import RewardNotification from './RewardNotification';
+import Loading from '@/components/ui/Loading';
 
 interface Habit {
   id: string;
@@ -24,7 +26,8 @@ const HabitList = ({ onHabitUpdated }: HabitListProps) => {
   const [error, setError] = useState<string | null>(null);
   const [completingId, setCompletingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const { user } = useAuth();
+  const [rewardData, setRewardData] = useState<{xp: number, level?: number, badges?: any[]} | null>(null);
+  const { user, fetchUser } = useAuth();
 
   const fetchHabits = async () => {
     if (!user) {
@@ -68,6 +71,19 @@ const HabitList = ({ onHabitUpdated }: HabitListProps) => {
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.detail || "Failed to complete habit.");
+      }
+
+      const data = await response.json();
+
+      // Check for rewards
+      if (data.xp_gained) {
+        setRewardData({
+          xp: data.xp_gained,
+          level: data.new_level,
+          badges: data.new_badges
+        });
+        // Update user context to reflect new XP/Level
+        await fetchUser();
       }
 
       // Refresh habits list and notify parent
@@ -121,11 +137,8 @@ const HabitList = ({ onHabitUpdated }: HabitListProps) => {
 
   if (loading) {
     return (
-      <div className="text-center py-8">
-        <div className="inline-flex items-center space-x-2 animate-pulse text-cyan-300 font-mono">
-          <div className="w-4 h-4 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin"></div>
-          <span>LOADING_HABIT_DATA...</span>
-        </div>
+      <div className="py-12">
+        <Loading text="LOADING_HABIT_DATA..." />
       </div>
     );
   }
@@ -276,6 +289,16 @@ const HabitList = ({ onHabitUpdated }: HabitListProps) => {
           </span>
         </div>
       </div>
+
+      {/* Reward Notification */}
+      {rewardData && (
+        <RewardNotification
+          xpGained={rewardData.xp}
+          newLevel={rewardData.level}
+          newBadges={rewardData.badges}
+          onClose={() => setRewardData(null)}
+        />
+      )}
     </div>
   );
 };

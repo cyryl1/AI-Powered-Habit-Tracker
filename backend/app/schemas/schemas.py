@@ -41,3 +41,40 @@ class UserSettingsUpdate(BaseModel):
     analysisDepth: Optional[str] = None
     habitReminders: Optional[bool] = None
     streakAlerts: Optional[bool] = None
+
+class GoalBreakdownRequest(BaseModel):
+    goal: str
+    duration: Optional[str] = "daily"
+
+class SuggestedHabit(BaseModel):
+    name: str
+    description: str
+    frequency: str
+    reason: str
+
+class GoalBreakdownResponse(BaseModel):
+    habits: List[SuggestedHabit]
+    advice: str
+
+class ScheduleSuggestion(BaseModel):
+    habit_id: str
+    habit_name: str
+    current_time: Optional[str]
+    suggested_time: str
+    reason: str
+
+class ScheduleResponse(BaseModel):
+    suggestions: List[ScheduleSuggestion]
+
+class Badge(BaseModel):
+    id: str
+    name: str
+    description: str
+    icon: str
+    earned_at: str
+
+class HabitCompletionResponse(BaseModel):
+    habit: Any # Avoid circular import, or use a forward ref if possible. Using Any for simplicity here or import Habit schema
+    xp_gained: int
+    new_level: Optional[int] = None
+    new_badges: List[Badge] = []

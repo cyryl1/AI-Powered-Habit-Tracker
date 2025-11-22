@@ -4,6 +4,9 @@ import { useAuth } from '@/context/AuthContext';
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { BASE_URL } from "../../../config";
+import ConsistencyHeatmap from '@/components/features/ConsistencyHeatmap';
+import GamificationProfile from '@/components/features/GamificationProfile';
+import Loading from '@/components/ui/Loading';
 
 interface Habit {
   id: string;
@@ -68,13 +71,7 @@ export default function DashboardPage() {
   }, [fetchHabits]);
 
   if (loading) {
-    return (
-      <div className="flex-1 flex items-center justify-center">
-        <div className="text-cyan-300 font-mono text-lg">
-          <span className="animate-pulse">LOADING_NEURAL_DATA...</span>
-        </div>
-      </div>
-    );
+    return <Loading fullScreen text="LOADING_NEURAL_DATA..." />;
   }
 
   return (
@@ -122,8 +119,13 @@ export default function DashboardPage() {
         ))}
       </div>
 
+      {/* Gamification Profile */}
+      <div className="mb-8">
+        <GamificationProfile />
+      </div>
+
       {/* Quick Actions & Recent Activity */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
         {/* Quick Actions */}
         <div className="bg-black/60 border border-cyan-400/30 rounded-xl p-6 backdrop-blur-sm">
           <h2 className="text-xl font-mono text-cyan-300 mb-6">
@@ -212,6 +214,11 @@ export default function DashboardPage() {
         <div className="text-cyan-300 font-mono text-sm text-center">
           <span className="text-green-400">$</span> "Consistency is the language of mastery. Every completed habit rewires your neural pathways."
         </div>
+      </div>
+
+      {/* Heatmap Section */}
+      <div className="mt-8">
+        <ConsistencyHeatmap />
       </div>
     </div>
   );

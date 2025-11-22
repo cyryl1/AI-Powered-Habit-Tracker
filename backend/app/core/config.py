@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     USE_CREDENTIALS: bool
     VALIDATE_CERTS: bool
     PORT: int | None = None
+    ENVIRONMENT: str = "development"
 
     class Config:
         env_file = ".env"

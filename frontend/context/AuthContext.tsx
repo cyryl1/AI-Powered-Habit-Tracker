@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { BASE_URL } from "../config";
+import Loading from '@/components/ui/Loading';
 
 interface User {
   _id: string;
@@ -13,6 +14,9 @@ interface User {
   personal_goals?: string[];
   preferred_categories?: string[];
   onboarding_completed?: boolean;
+  xp?: number;
+  level?: number;
+  badges?: any[];
 }
 
 interface AuthContextType {
@@ -173,6 +177,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     fetchUser,
     logout,
   };
+
+  // Show loading screen during initial auth check to prevent flash of unauthenticated content
+  if (loading) {
+    return <Loading fullScreen text="INITIALIZING_SYSTEM_PROTOCOLS..." />;
+  }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

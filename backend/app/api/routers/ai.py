@@ -4,10 +4,12 @@ from typing import Annotated, Any, Dict, List
 import google.generativeai as genai
 from fastapi import APIRouter, Depends, HTTPException, Request
 from app.core.security import get_current_active_user
-from app.schemas.schemas import UserOut, ChatMessage, AnalyticsData
+from app.schemas.schemas import UserOut, ChatMessage, AnalyticsData, GoalBreakdownRequest, GoalBreakdownResponse, SuggestedHabit, ScheduleResponse, ScheduleSuggestion
 from app.core.database import get_db
 from app.models.user import User
-import re # Added import statement for the 're' module
+import re
+import json
+from collections import defaultdict # Added import statement for the 're' module
 
 router = APIRouter()
 
@@ -190,62 +192,150 @@ async def chat(
         
         raise HTTPException(status_code=500, detail=f"Gemini AI chat failed: {str(e)}")
 
-# @router.get("/analytics", response_model=AnalyticsData)
-# async def get_analytics_data(
-#     db: Annotated[Any, Depends(get_db)],
-#     current_user: User = Depends(get_current_active_user)
-# ):
-#     habits_cursor = db.habits.find({"user_id": str(current_user.id)})
-#     habits = await habits_cursor.to_list(length=None)
+@router.post("/breakdown", response_model=GoalBreakdownResponse)
+async def breakdown_goal(
+    request: GoalBreakdownRequest,
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Breaks down a user's goal into actionable habits using AI.
+    """
+    try:
+        model = genai.GenerativeModel('gemini-2.5-flash')
+        
+        prompt = f"""
+        You are an expert habit coach. The user has a goal: "{request.goal}".
+        
+        Break this goal down into 3-5 specific, actionable habits that will help them achieve it.
+        For each habit, provide:
+        1. A short, punchy name (e.g., "Drink Water").
+        2. A brief description (e.g., "Drink 1 glass immediately after waking up").
+        3. A recommended frequency (e.g., "daily", "weekly", "weekdays").
+        4. A reason why this helps.
+        
+        Also provide a short paragraph of general advice for this goal.
+        
+        Return the response in strict JSON format with this structure:
+        {{
+            "habits": [
+                {{
+                    "name": "...",
+                    "description": "...",
+                    "frequency": "...",
+                    "reason": "..."
+                }}
+            ],
+            "advice": "..."
+        }}
+        Do not include markdown formatting (like ```json). Just the raw JSON string.
+        """
+        
+        response = model.generate_content(prompt)
+        text_response = response.text.strip()
+        
+        # Clean up potential markdown code blocks if Gemini adds them
+        if text_response.startswith("```json"):
+            text_response = text_response[7:]
+        if text_response.startswith("```"):
+            text_response = text_response[3:]
+        if text_response.endswith("```"):
+            text_response = text_response[:-3]
+            
+        data = json.loads(text_response.strip())
+        
+        return GoalBreakdownResponse(**data)
+        
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=500, detail="AI returned invalid JSON format")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"AI goal breakdown failed: {str(e)}")
 
-#     # Initialize metrics
-#     weekly_completions = [0] * 7  # Assuming 7 days for weekly data
-#     habit_counts: Dict[str, int] = {}
-#     habit_streaks: Dict[str, int] = {}
-#     total_completions = 0
-#     active_days_set = set()
+@router.get("/schedule-suggestions", response_model=ScheduleResponse)
+async def get_schedule_suggestions(
+    db: Annotated[Any, Depends(get_db)],
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Analyzes habit completion history to suggest optimal reminder times.
+    """
+    # 1. Fetch all habits
+    habits_cursor = db.habits.find({"user_id": str(current_user.id)})
+    habits = await habits_cursor.to_list(length=None)
+    
+    if not habits:
+        return {"suggestions": []}
 
-#     for habit in habits:
-#         # Weekly Completions (simplified for now, needs actual completion dates)
-#         # For demonstration, let's just count all habits as completed once a week
-#         # In a real app, you'd iterate through completion records for the last 7 days
-#         for i in range(7):
-#             weekly_completions[i] += 1 # Placeholder
+    # 2. Fetch completion history
+    completions_cursor = db.habit_completions.find({"user_id": str(current_user.id)})
+    completions = await completions_cursor.to_list(length=None)
+    
+    if not completions:
+        return {"suggestions": []}
 
-#         # Habit Distribution
-#         habit_name = habit.get("name", "Unknown Habit")
-#         habit_counts[habit_name] = habit_counts.get(habit_name, 0) + 1
+    # 3. Group completions by habit
+    habit_data = defaultdict(list)
+    for c in completions:
+        try:
+            dt = datetime.fromisoformat(c["completed_at"].replace('Z', '+00:00'))
+            habit_data[c["habit_id"]].append(dt.hour) # Store just the hour (0-23)
+        except (ValueError, KeyError):
+            continue
 
-#         # Best Performing Habits (based on streak)
-#         streak = habit.get("streak", 0)
-#         habit_streaks[habit_name] = max(habit_streaks.get(habit_name, 0), streak)
+    # 4. Prepare prompt for Gemini
+    analysis_text = "User's habit completion patterns:\n"
+    habits_map = {str(h["_id"]): h for h in habits}
+    
+    has_data = False
+    for habit_id, hours in habit_data.items():
+        if habit_id in habits_map:
+            habit_name = habits_map[habit_id]["name"]
+            avg_hour = sum(hours) / len(hours)
+            analysis_text += f"- Habit: '{habit_name}' (ID: {habit_id}). Completed at hours: {sorted(hours)}. Average hour: {avg_hour:.1f}.\n"
+            has_data = True
+            
+    if not has_data:
+        return {"suggestions": []}
 
-#         # Performance Metrics
-#         total_completions += habit.get("completion_count", 0)
-#         if habit.get("last_completed"):
-#             # In a real app, you'd check if last_completed falls within active days
-#             active_days_set.add(datetime.strptime(habit["last_completed"], "%Y-%m-%d").strftime("%Y-%m-%d"))
+    prompt = f"""
+    {analysis_text}
+    
+    Based on these completion times, suggest an optimal reminder time for each habit.
+    The reminder should be slightly before they usually do it (e.g., 30-60 mins before).
+    
+    Return a JSON object with a list of suggestions:
+    {{
+        "suggestions": [
+            {{
+                "habit_id": "...",
+                "habit_name": "...",
+                "current_time": "None", 
+                "suggested_time": "HH:MM" (24-hour format),
+                "reason": "You usually complete this around 19:00, so a reminder at 18:30 might help."
+            }}
+        ]
+    }}
+    Only include habits where you see a clear pattern.
+    """
 
-#     # Calculate derived metrics
-#     avg_streak = sum(habit_streaks.values()) / len(habit_streaks) if habit_streaks else 0
-#     success_rate = (total_completions / (len(habits) * 7)) * 100 if habits else 0 # Placeholder calculation
-#     active_days = len(active_days_set)
-
-#     # Format for response
-#     habit_distribution = [{"name": name, "count": count} for name, count in habit_counts.items()]
-#     best_performing = sorted([{"name": name, "streak": streak} for name, streak in habit_streaks.items()], key=lambda x: x["streak"], reverse=True)[:3]
-
-#     return {
-#         "weeklyCompletions": weekly_completions,
-#         "habitDistribution": habit_distribution,
-#         "bestPerforming": best_performing,
-#         "performanceMetrics": {
-#             "avgStreak": round(avg_streak, 1),
-#             "successRate": round(success_rate, 0),
-#             "totalCompletions": total_completions,
-#             "activeDays": active_days
-#         }
-#     }
+    try:
+        model = genai.GenerativeModel('gemini-2.5-flash')
+        response = model.generate_content(prompt)
+        text_response = response.text.strip()
+        
+        # Clean markdown
+        if text_response.startswith("```json"):
+            text_response = text_response[7:]
+        if text_response.startswith("```"):
+            text_response = text_response[3:]
+        if text_response.endswith("```"):
+            text_response = text_response[:-3]
+            
+        data = json.loads(text_response.strip())
+        return ScheduleResponse(**data)
+        
+    except Exception as e:
+        print(f"AI Schedule Error: {e}")
+        return {"suggestions": []}
 
 @router.get("/analytics", response_model=AnalyticsData)
 async def get_analytics_data(
@@ -281,7 +371,13 @@ async def get_analytics_data(
 
     # Process completions for the selected timeframe
     for completion in completions:
-        completion_date = datetime.strptime(completion["completed_at"], "%Y-%m-%d")
+        try:
+            # Handle full ISO format (e.g. 2023-10-27T10:00:00.123456)
+            completion_date = datetime.fromisoformat(completion["completed_at"].replace('Z', '+00:00'))
+        except ValueError:
+            # Fallback for simple date format
+            completion_date = datetime.strptime(completion["completed_at"], "%Y-%m-%d")
+
         if start_date <= completion_date <= end_date:
             # Calculate which day index this completion belongs to
             days_diff = (end_date - completion_date).days
@@ -295,7 +391,19 @@ async def get_analytics_data(
     for habit in habits:
         # Habit Distribution (count completions per habit in timeframe)
         habit_name = habit.get("name", "Unknown Habit")
-        habit_completions = len([c for c in completions if c.get("habit_id") == habit["_id"] and start_date <= datetime.strptime(c["completed_at"], "%Y-%m-%d") <= end_date])
+        
+        # Helper to parse date safely
+        def parse_date(date_str):
+            try:
+                return datetime.fromisoformat(date_str.replace('Z', '+00:00'))
+            except ValueError:
+                return datetime.strptime(date_str, "%Y-%m-%d")
+
+        habit_completions = len([
+            c for c in completions 
+            if c.get("habit_id") == habit["_id"] 
+            and start_date <= parse_date(c["completed_at"]) <= end_date
+        ])
         habit_counts[habit_name] = habit_counts.get(habit_name, 0) + habit_completions
 
         # Best Performing Habits (current streak)

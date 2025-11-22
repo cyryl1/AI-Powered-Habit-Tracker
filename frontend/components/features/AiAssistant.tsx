@@ -1,34 +1,44 @@
 'use client';
 
-import { useState, useContext } from 'react';
-import { useAuth } from '../../context/AuthContext';
-import { BASE_URL } from "../../config";
+import React, { useState, useRef, useEffect } from 'react';
+import { BASE_URL } from '@/config';
+import { useAuth } from '@/context/AuthContext';
 
-interface Message {
-  text: string;
-  sender: 'user' | 'ai';
+interface ChatMessage {
+  role: 'user' | 'model';
+  content: string;
 }
 
 export default function AiAssistant() {
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([
-    { text: 'Hello, I am your Neural Assistant. How can I help you with your habits today?', sender: 'ai' },
-  ]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { user } = useAuth();
 
-  const handleSendMessage = async () => {
-    if (input.trim() === '') return;
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
 
-    const userMessage: Message = { text: input, sender: 'user' };
-    setMessages((prevMessages) => [...prevMessages, userMessage]);
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, isOpen]);
+
+  const handleSend = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!input.trim() || loading) return;
+
+    const userMsg: ChatMessage = { role: 'user', content: input };
+    setMessages(prev => [...prev, userMsg]);
     setInput('');
-    setIsLoading(true);
+    setLoading(true);
 
     try {
-      const formattedHistory = messages.map(msg => ({
-        role: msg.sender === 'user' ? 'user' : 'model', // 'model' for AI messages
-        content: msg.text,
+      // Prepare history (excluding the current message)
+      const history = messages.map(m => ({
+        role: m.role,
+        content: m.content
       }));
 
       const response = await fetch(`${BASE_URL}ai/chat`, {
@@ -36,82 +46,120 @@ export default function AiAssistant() {
         headers: {
           'Content-Type': 'application/json',
         },
+        body: JSON.stringify({
+          message: userMsg,
+          history: history
+        }),
         credentials: 'include',
-        body: JSON.stringify({ message: { role: 'user', content: input }, history: formattedHistory }),
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        const aiMessage: Message = { text: data.response, sender: 'ai' };
-        setMessages((prevMessages) => [...prevMessages, aiMessage]);
-      } else {
-        setMessages((prevMessages) => [...prevMessages, { text: 'Error: Could not get a response from the AI.', sender: 'ai' }]);
-      }
+      if (!response.ok) throw new Error('Failed to send message');
+
+      const data = await response.json();
+      const aiMsg: ChatMessage = { role: 'model', content: data.response };
+      setMessages(prev => [...prev, aiMsg]);
     } catch (error) {
-      console.error('Error sending message to AI:', error);
-      setMessages((prevMessages) => [...prevMessages, { text: 'Error: Network issue or server not reachable.', sender: 'ai' }]);
+      console.error('Chat error:', error);
+      setMessages(prev => [...prev, { role: 'model', content: '⚠️ Connection lost. My neural link is unstable.' }]);
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
   return (
-    <div className="fixed bottom-4 right-4 z-50">
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="bg-purple-600 text-white p-3 rounded-full shadow-lg hover:bg-purple-700 transition-colors"
-      >
-        🧠
-      </button>
-
+    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end">
+      {/* Chat Window */}
       {isOpen && (
-        <div className="absolute bottom-16 right-0 w-80 h-96 bg-black border border-purple-400/30 rounded-lg shadow-xl p-4 flex flex-col">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-mono text-purple-300">NEURAL_ASSISTANT</h3>
-            <button onClick={() => setIsOpen(false)} className="text-gray-400 hover:text-white">
+        <div className="mb-4 w-80 sm:w-96 h-[500px] bg-black/90 border border-cyan-500/30 rounded-2xl backdrop-blur-xl shadow-[0_0_30px_rgba(34,211,238,0.1)] flex flex-col overflow-hidden animate-in slide-in-from-bottom-10 fade-in duration-300">
+          {/* Header */}
+          <div className="p-4 border-b border-cyan-500/20 bg-cyan-950/30 flex justify-between items-center">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+              <span className="text-cyan-300 font-mono text-sm font-bold">NEURAL_ASSISTANT</span>
+            </div>
+            <button 
+              onClick={() => setIsOpen(false)}
+              className="text-gray-400 hover:text-white transition-colors"
+            >
               ✕
             </button>
           </div>
-          <div className="flex-1 overflow-y-auto text-gray-300 text-sm font-mono p-2 space-y-2">
-            {messages.map((msg, index) => (
-              <div key={index} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[70%] p-2 rounded-lg ${msg.sender === 'user' ? 'bg-purple-600 text-white' : 'bg-gray-700 text-gray-100'}`}>
-                  {msg.text}
+
+          {/* Messages Area */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-cyan-900 scrollbar-track-transparent">
+            {messages.length === 0 && (
+              <div className="text-center text-gray-500 mt-10 font-mono text-sm">
+                <p>System Online.</p>
+                <p>How can I assist your protocols today?</p>
+              </div>
+            )}
+            {messages.map((msg, idx) => (
+              <div 
+                key={idx} 
+                className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+              >
+                <div 
+                  className={`max-w-[80%] p-3 rounded-xl text-sm ${
+                    msg.role === 'user' 
+                      ? 'bg-cyan-900/40 text-cyan-100 border border-cyan-500/30 rounded-tr-none' 
+                      : 'bg-gray-900/60 text-gray-300 border border-gray-700 rounded-tl-none'
+                  }`}
+                >
+                  {msg.content}
                 </div>
               </div>
             ))}
-            {isLoading && (
+            {loading && (
               <div className="flex justify-start">
-                <div className="max-w-[70%] p-2 rounded-lg bg-gray-700 text-gray-100 animate-pulse">
-                  Thinking...
+                <div className="bg-gray-900/60 p-3 rounded-xl rounded-tl-none border border-gray-700">
+                  <div className="flex gap-1">
+                    <div className="w-2 h-2 bg-cyan-500/50 rounded-full animate-bounce"></div>
+                    <div className="w-2 h-2 bg-cyan-500/50 rounded-full animate-bounce delay-100"></div>
+                    <div className="w-2 h-2 bg-cyan-500/50 rounded-full animate-bounce delay-200"></div>
+                  </div>
                 </div>
               </div>
             )}
+            <div ref={messagesEndRef} />
           </div>
-          <div className="flex mt-4">
-            <input 
-              type="text" 
-              placeholder="Ask me anything..."
-              className="flex-1 p-2 bg-gray-800 border border-purple-400/20 rounded-l text-white font-mono text-sm focus:outline-none focus:border-purple-400"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyPress={(e) => {
-                if (e.key === 'Enter') {
-                  handleSendMessage();
-                }
-              }}
-              disabled={isLoading}
-            />
-            <button
-              onClick={handleSendMessage}
-              className="bg-purple-600 text-white p-2 rounded-r shadow-lg hover:bg-purple-700 transition-colors"
-              disabled={isLoading}
-            >
-              Send
-            </button>
-          </div>
+
+          {/* Input Area */}
+          <form onSubmit={handleSend} className="p-4 border-t border-cyan-500/20 bg-black/50">
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="Type command..."
+                className="flex-1 bg-gray-900/50 border border-gray-700 rounded-lg px-4 py-2 text-sm text-white focus:border-cyan-500 focus:outline-none transition-colors font-mono"
+              />
+              <button 
+                type="submit"
+                disabled={loading || !input.trim()}
+                className="bg-cyan-500/20 text-cyan-400 border border-cyan-500/50 p-2 rounded-lg hover:bg-cyan-500/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              >
+                ➤
+              </button>
+            </div>
+          </form>
         </div>
       )}
+
+      {/* Toggle Button */}
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className={`w-14 h-14 rounded-full flex items-center justify-center shadow-lg transition-all duration-300 hover:scale-110 ${
+          isOpen 
+            ? 'bg-gray-800 text-gray-400 rotate-90' 
+            : 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-cyan-500/25 animate-pulse-slow'
+        }`}
+      >
+        {isOpen ? (
+          <span className="text-xl">✕</span>
+        ) : (
+          <span className="text-2xl">💬</span>
+        )}
+      </button>
     </div>
   );
 }
