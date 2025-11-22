@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     VALIDATE_CERTS: bool
     PORT: int | None = None
     ENVIRONMENT: str = "development"
+    BACKEND_CORS_ORIGINS: list[str] = ["http://localhost:3000"]
 
     class Config:
         env_file = ".env"

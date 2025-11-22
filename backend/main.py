@@ -30,18 +30,13 @@ async def schedule_ai_insights():
 async def schedule_streak_alerts():
     await check_and_send_streak_alerts()
 
-origins = [
-    "http://localhost",
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "https://ai-powered-habit-tracker-neon.vercel.app",
-    "https://ai-powered-habit-tracker.onrender.com",
-]
+# Set up CORS
+# origins = settings.BACKEND_CORS_ORIGINS
 
 # Add the CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origin_regex="https?://.*", # Allows all origins while supporting credentials
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
