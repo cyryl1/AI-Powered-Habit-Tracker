@@ -15,23 +15,32 @@ genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 async def generate_and_send_ai_insights():
     """Generates and sends AI insights to users who have enabled them."""
     db = await get_db()
-    model = genai.GenerativeModel('gemini-2.5-flash') # Using gemini-pro as gemini-2.5-flash is not directly available via genai.GenerativeModel
+    model = genai.GenerativeModel('gemini-2.5-flash')
 
-    users_cursor = db.users.find({"settings.aiInsights": True})
-    async for user in users_cursor:
-        if user and user.settings.notifications and user.settings.aiInsights:
-            # In a real scenario, you'd generate personalized insights here
-            # For now, we'll use a generic prompt.
-            user_habits = await db.habits.find({"user_id": user.id}).to_list()
-            habit_names = ", ".join([habit.name for habit in user_habits]) if user_habits else "no habits yet"
+    users_cursor = db.users.find({"settings.aiInsights": True, "settings.notifications": True})
+    async for user_dict in users_cursor:
+        try:
+            # user_dict is a plain dict from MongoDB, not a User model instance
+            user_id = str(user_dict["_id"])
+            user_name = user_dict.get("name", "User")
+            user_email = user_dict.get("email")
+            
+            if not user_email:
+                continue
+            
+            # Get user's habits
+            user_habits = await db.habits.find({"user_id": user_id}).to_list(length=None)
+            habit_names = ", ".join([habit.get("name", "Unnamed") for habit in user_habits]) if user_habits else "no habits yet"
 
-            prompt = f"Generate a short, encouraging and personalized AI insight for a user named {user.name}. " \
+            prompt = f"Generate a short, encouraging and personalized AI insight for a user named {user_name}. " \
                      f"The user's habits include: {habit_names}. Focus on motivation and progress. " \
                      f"Format the insight as a friendly, concise message."
             response = model.generate_content(prompt)
-            insight_content = f"Hello {user.name},\n\nHere's your weekly AI Insight:\n\n{response.text}\n\nKeep up the great work!"
+            insight_content = f"Hello {user_name},\n\nHere's your weekly AI Insight:\n\n{response.text}\n\nKeep up the great work!"
             await send_email(
                 subject="Your Weekly AI Insight",
-                recipient=user.email,
+                recipient=user_email,
                 body=insight_content
             )
+        except Exception as e:
+            print(f"Error sending AI insight to user: {e}")
