@@ -5,7 +5,7 @@ from typing import List, Optional
 
 from beanie import PydanticObjectId
 
-from app.core.database import db
+from app.core.database import get_db
 from app.models.habit import Habit
 from app.models.user import User
 from app.services.email import send_email
@@ -14,6 +14,7 @@ genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 
 async def generate_and_send_ai_insights():
     """Generates and sends AI insights to users who have enabled them."""
+    db = await get_db()
     model = genai.GenerativeModel('gemini-2.5-flash') # Using gemini-pro as gemini-2.5-flash is not directly available via genai.GenerativeModel
 
     users_cursor = db.users.find({"settings.aiInsights": True})
