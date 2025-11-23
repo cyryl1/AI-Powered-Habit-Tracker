@@ -75,9 +75,9 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="flex-1 p-6">
+    <div className="flex-1 p-4 sm:p-6">
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
         {[
           { 
             label: 'ACTIVE_PROTOCOLS', 
@@ -107,28 +107,39 @@ export default function DashboardPage() {
             icon: '📊',
             description: 'Weekly completion'
           }
-        ].map((stat, index) => (
-          <div key={index} className={`bg-black/60 border border-${stat.color}-400/30 rounded-xl p-6 backdrop-blur-sm hover:border-${stat.color}-400/50 transition-all duration-300`}>
-            <div className="flex items-center justify-between mb-4">
-              <div className={`text-${stat.color}-300 text-2xl`}>{stat.icon}</div>
-              <div className={`text-${stat.color}-300 font-mono text-sm`}>{stat.label}</div>
+        ].map((stat, index) => {
+          // Define color classes properly for Tailwind JIT
+          const colorClasses = {
+            cyan: { border: 'border-cyan-400/30 hover:border-cyan-400/50', text: 'text-cyan-300' },
+            green: { border: 'border-green-400/30 hover:border-green-400/50', text: 'text-green-300' },
+            purple: { border: 'border-purple-400/30 hover:border-purple-400/50', text: 'text-purple-300' },
+            orange: { border: 'border-orange-400/30 hover:border-orange-400/50', text: 'text-orange-300' }
+          };
+          const colors = colorClasses[stat.color as keyof typeof colorClasses];
+          
+          return (
+            <div key={index} className={`bg-black/60 border ${colors.border} rounded-xl p-4 sm:p-6 backdrop-blur-sm transition-all duration-300`}>
+              <div className="flex items-center justify-between mb-3 sm:mb-4">
+                <div className={`${colors.text} text-xl sm:text-2xl`}>{stat.icon}</div>
+                <div className={`${colors.text} font-mono text-xs sm:text-sm`}>{stat.label}</div>
+              </div>
+              <div className={`text-2xl sm:text-3xl font-bold ${colors.text} mb-2`}>{stat.value}</div>
+              <div className="text-gray-400 font-mono text-xs">{stat.description}</div>
             </div>
-            <div className={`text-3xl font-bold text-${stat.color}-300 mb-2`}>{stat.value}</div>
-            <div className="text-gray-400 font-mono text-xs">{stat.description}</div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Gamification Profile */}
-      <div className="mb-8">
+      <div className="mb-6 sm:mb-8">
         <GamificationProfile />
       </div>
 
       {/* Quick Actions & Recent Activity */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8 mb-6 sm:mb-8">
         {/* Quick Actions */}
-        <div className="bg-black/60 border border-cyan-400/30 rounded-xl p-6 backdrop-blur-sm">
-          <h2 className="text-xl font-mono text-cyan-300 mb-6">
+        <div className="bg-black/60 border border-cyan-400/30 rounded-xl p-4 sm:p-6 backdrop-blur-sm">
+          <h2 className="text-lg sm:text-xl font-mono text-cyan-300 mb-4 sm:mb-6">
             <span className="text-green-400">⚡</span> QUICK_ACTIONS
           </h2>
           <div className="space-y-4">
@@ -185,8 +196,8 @@ export default function DashboardPage() {
         </div> */}
 
          {/* System Status - Now Habit List */}
-         <div className="bg-black/60 border border-green-400/30 rounded-xl p-6 backdrop-blur-sm">
-           <h2 className="text-xl font-mono text-green-300 mb-6">
+         <div className="bg-black/60 border border-green-400/30 rounded-xl p-4 sm:p-6 backdrop-blur-sm">
+           <h2 className="text-lg sm:text-xl font-mono text-green-300 mb-4 sm:mb-6">
              <span className="text-cyan-400">🎯</span> ACTIVE_PROTOCOLS
            </h2>
            <div className="space-y-4">
@@ -210,14 +221,14 @@ export default function DashboardPage() {
        </div>
 
        {/* Motivation Quote */}
-      <div className="mt-8 p-6 border border-cyan-400/20 rounded-xl bg-cyan-400/5">
-        <div className="text-cyan-300 font-mono text-sm text-center">
+      <div className="mt-6 sm:mt-8 p-4 sm:p-6 border border-cyan-400/20 rounded-xl bg-cyan-400/5">
+        <div className="text-cyan-300 font-mono text-xs sm:text-sm text-center">
           <span className="text-green-400">$</span> "Consistency is the language of mastery. Every completed habit rewires your neural pathways."
         </div>
       </div>
 
       {/* Heatmap Section */}
-      <div className="mt-8">
+      <div className="mt-6 sm:mt-8">
         <ConsistencyHeatmap />
       </div>
     </div>

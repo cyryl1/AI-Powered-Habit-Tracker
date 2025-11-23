@@ -69,26 +69,26 @@ export default function ConsistencyHeatmap() {
   }
 
   return (
-    <div className="bg-black/60 border border-cyan-500/20 rounded-xl p-6 backdrop-blur-sm">
-      <div className="flex justify-between items-end mb-4">
-        <h2 className="text-xl font-mono text-cyan-300">
+    <div className="bg-black/60 border border-cyan-500/20 rounded-xl p-4 sm:p-6 backdrop-blur-sm">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-3 sm:gap-0 mb-4">
+        <h2 className="text-lg sm:text-xl font-mono text-cyan-300">
           <span className="text-green-400">▦</span> CONSISTENCY_MATRIX
         </h2>
-        <div className="flex items-center gap-2 text-xs font-mono text-gray-500">
-          <span>LESS</span>
-          <div className="w-3 h-3 bg-gray-900/50 border border-gray-800 rounded-sm"></div>
-          <div className="w-3 h-3 bg-cyan-900/60 border border-cyan-800 rounded-sm"></div>
-          <div className="w-3 h-3 bg-cyan-500/60 border border-cyan-400 rounded-sm"></div>
-          <div className="w-3 h-3 bg-green-400 border border-green-300 rounded-sm"></div>
-          <span>MORE</span>
+        <div className="flex items-center gap-1.5 sm:gap-2 text-xs font-mono text-gray-500">
+          <span className="text-[10px] sm:text-xs">LESS</span>
+          <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-gray-900/50 border border-gray-800 rounded-sm"></div>
+          <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-cyan-900/60 border border-cyan-800 rounded-sm"></div>
+          <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-cyan-500/60 border border-cyan-400 rounded-sm"></div>
+          <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-green-400 border border-green-300 rounded-sm"></div>
+          <span className="text-[10px] sm:text-xs">MORE</span>
         </div>
       </div>
 
       <div className="overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-cyan-900 scrollbar-track-transparent">
-        <div className="flex gap-1 min-w-max">
+        <div className="flex gap-0.5 sm:gap-1 min-w-max">
           {/* We need to group by weeks for the vertical layout typical of GitHub */}
           {Array.from({ length: 53 }).map((_, weekIndex) => (
-            <div key={weekIndex} className="flex flex-col gap-1">
+            <div key={weekIndex} className="flex flex-col gap-0.5 sm:gap-1">
               {Array.from({ length: 7 }).map((_, dayIndex) => {
                 // Calculate index in the flat array
                 // This is a simplified approximation to fill the grid
@@ -109,11 +109,11 @@ export default function ConsistencyHeatmap() {
                 return (
                   <div
                     key={dateStr}
-                    className={`w-3 h-3 rounded-sm border ${getColor(count)} transition-all hover:scale-125 relative group z-0 hover:z-10`}
+                    className={`w-2 h-2 sm:w-2.5 sm:h-2.5 md:w-3 md:h-3 rounded-sm border ${getColor(count)} transition-all hover:scale-125 relative group z-0 hover:z-10`}
                   >
                     {/* Tooltip */}
-                    <div className={`absolute ${tooltipPosition} left-1/2 -translate-x-1/2 hidden group-hover:block z-50 whitespace-nowrap`}>
-                      <div className="bg-black border border-cyan-500/50 text-cyan-300 text-xs px-2 py-1 rounded font-mono shadow-lg">
+                    <div className={`absolute ${tooltipPosition} left-1/2 -translate-x-1/2 hidden group-hover:block z-50 whitespace-nowrap pointer-events-none`}>
+                      <div className="bg-black border border-cyan-500/50 text-cyan-300 text-[10px] sm:text-xs px-2 py-1 rounded font-mono shadow-lg">
                         {dateStr}: {count} completions
                       </div>
                     </div>
