@@ -37,7 +37,7 @@ export default function DashboardPage() {
 
   const fetchDashboardStats = async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/v1/habits/stats/summary', {
+      const response = await fetch(`${BASE_URL}habits/stats/summary`, {
         credentials: 'include',
       });
       if (response.ok) {
