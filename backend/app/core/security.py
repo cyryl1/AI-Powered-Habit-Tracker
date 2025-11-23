@@ -14,41 +14,19 @@ from app.models.user import User, UserSettings
 
 class PasswordHasher:
     def __init__(self):
-        self.pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-    
-    def _truncate_password(self, password: str) -> bytes:
-        """
-        Truncate password to 72 bytes for bcrypt compatibility.
-        Properly handles UTF-8 multi-byte characters to avoid corruption.
-        """
-        password_bytes = password.encode('utf-8')
-        if len(password_bytes) <= 72:
-            return password_bytes
-        
-        # Truncate to 72 bytes, but ensure we don't cut a multi-byte char in half
-        truncated = password_bytes[:72]
-        
-        # Try to decode; if it fails, we cut a multi-byte char, so trim more
-        while len(truncated) > 0:
-            try:
-                truncated.decode('utf-8')
-                return truncated
-            except UnicodeDecodeError:
-                # Remove the last byte and try again
-                truncated = truncated[:-1]
-        
-        # Fallback (should never reach here)
-        return password_bytes[:72]
-    
+        # Use bcrypt_sha256 which safely supports passwords longer than 72 bytes
+        # by hashing with SHA256 before applying bcrypt. This avoids silent
+        # truncation issues across different bcrypt backends in production.
+        self.pwd_context = CryptContext(schemes=["bcrypt_sha256"], deprecated="auto")
+
     def hash_password(self, password: str) -> str:
-        """Hash a password with automatic truncation to 72 bytes."""
-        truncated = self._truncate_password(password)
-        return self.pwd_context.hash(truncated)
-    
+        """Hash a password. Uses bcrypt_sha256 to avoid the 72-byte bcrypt limit."""
+        # Always pass a str to passlib; bcrypt_sha256 internally handles long inputs
+        return self.pwd_context.hash(password)
+
     def verify_password(self, plain_password: str, hashed_password: str) -> bool:
-        """Verify a password against a hash with automatic truncation to 72 bytes."""
-        truncated = self._truncate_password(plain_password)
-        return self.pwd_context.verify(truncated, hashed_password)
+        """Verify a password against a stored hash."""
+        return self.pwd_context.verify(plain_password, hashed_password)
 
 # Token related constants
 SECRET_KEY = settings.SECRET_KEY

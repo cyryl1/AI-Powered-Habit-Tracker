@@ -11,3 +11,4 @@ fastapi
 python-multipart
 typing-inspect
 fastapi-utils
+bcrypt==4.0.1
