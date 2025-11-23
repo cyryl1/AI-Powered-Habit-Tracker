@@ -21,20 +21,42 @@ password_hasher = PasswordHasher()
 
 @router.post("/register", response_model=UserOut, status_code=status.HTTP_201_CREATED)
 async def register_user(user: UserIn, db: Annotated[any, Depends(get_db)]):
+    # Check for existing email
     if await db.users.find_one({"email": user.email}):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered")
+    
+    # Check for existing username
     if await db.users.find_one({"username": user.username}):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username already taken")
 
+    # Hash the password
     hashed_password = password_hasher.hash_password(user.password)
+    
+    # Create new user document with default settings
     new_user_data = {
         "email": user.email, 
         "username": user.username, 
         "hashed_password": hashed_password,
-        "onboarding_completed": False
+        "onboarding_completed": False,
+        "is_active": True,
+        "settings": {
+            "notifications": True,
+            "aiInsights": True,
+            "insightFrequency": "weekly",
+            "analysisDepth": "detailed",
+            "habitReminders": True,
+            "streakAlerts": True
+        }
     }
-    await db.users.insert_one(new_user_data)
-    return UserOut(email=user.email, username=user.username)
+    
+    result = await db.users.insert_one(new_user_data)
+    
+    # Return the created user
+    return UserOut(
+        email=user.email, 
+        username=user.username,
+        onboarding_completed=False
+    )
 
 
 @router.post("/login")
@@ -66,16 +88,14 @@ async def login_for_access_token(
         expires_delta=access_token_expires
     )
     
-    # Determine cookie settings based on environment
-    is_production = settings.ENVIRONMENT == "production"
-    
-    # Set cookie
+    # Always use secure settings for production cross-origin cookies
+    # SameSite=None with Secure=True is required for cross-site cookie access
     response.set_cookie(
         key="access_token",
         value=access_token,
         httponly=True,
-        samesite="none" if is_production else "lax",
-        secure=True if is_production else False,
+        samesite="none",  # Must be "none" for cross-origin requests
+        secure=True,      # Required when samesite="none"
         max_age=int(access_token_expires.total_seconds()),
         path="/",
         domain=None,
@@ -92,16 +112,13 @@ async def logout_user(
     """
     Logout user by clearing the access_token cookie
     """
-    # Determine cookie settings based on environment
-    is_production = settings.ENVIRONMENT == "production"
-
-    # Clear the access_token cookie
+    # Clear the access_token cookie with same settings as when it was set
     response.delete_cookie(
         key="access_token",
         path="/",
         httponly=True,
-        samesite="none" if is_production else "lax",
-        secure=True if is_production else False
+        samesite="none",
+        secure=True
     )
     
     return {
